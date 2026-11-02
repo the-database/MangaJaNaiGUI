@@ -391,9 +391,17 @@ void InstallVcRuntime()
                 UseShellExecute = false,
             };
             using var p = Process.Start(psi)!;
+            // vswhere lists every installed redist (CI runners also carry VS 2019's 14.29), in no
+            // useful order. Take the newest: the runtime must be at least as new as the toolset
+            // libaji was linked with, and this app-local copy beside aji.dll wins over the system one.
             var found = p.StandardOutput.ReadToEnd()
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .FirstOrDefault(l => !l.Contains(@"\onecore\", StringComparison.OrdinalIgnoreCase));
+                .Where(l => !l.Contains(@"\onecore\", StringComparison.OrdinalIgnoreCase) && File.Exists(l))
+                .MaxBy(l =>
+                {
+                    var v = FileVersionInfo.GetVersionInfo(l);
+                    return new Version(v.FileMajorPart, v.FileMinorPart, v.FileBuildPart, v.FilePrivatePart);
+                });
             p.WaitForExit();
             crtDir = found is null ? null : Path.GetDirectoryName(found);
         }
@@ -403,7 +411,7 @@ void InstallVcRuntime()
         Console.WriteLine("WARNING: VC++ runtime not found (set VC_CRT_DIR); not bundled.");
         return;
     }
-    Console.WriteLine($"Copying VC++ runtime from {crtDir}...");
+    Console.WriteLine($"Copying VC++ runtime {FileVersionInfo.GetVersionInfo(Path.Combine(crtDir, "vcruntime140.dll")).FileVersion} from {crtDir}...");
     foreach (var dll in Directory.GetFiles(crtDir, "*.dll"))
     {
         File.Copy(dll, Path.Combine(inferencePath, Path.GetFileName(dll)), true);
