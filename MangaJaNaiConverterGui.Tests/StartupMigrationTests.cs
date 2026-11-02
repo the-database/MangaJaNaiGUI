@@ -122,6 +122,29 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Equal(new ModelChoice(V2Onnx, true), pickers[1].SelectedItem);
             Assert.Contains($"Chain 2's model {V2Onnx} isn't installed.", vm.ValidationText);
             Assert.False(vm.CurrentWorkflow.Valid);
+
+            // Every button with a CommandParameter runs its command through the compiled binding,
+            // as a click does. Avalonia 12 hands a method command the parameter as is: a literal
+            // CommandParameter="0" is a string, and an int method then throws (2.0.0 crashed on
+            // the Default Workflow button and the 1x-4x buttons).
+            // Taken before any runs: selecting a workflow rebuilds part of the window. Only value and
+            // text parameters (literals, indexes): a {Binding} parameter is its item (DeleteChain's
+            // chain), typed by the compiled binding.
+            var buttons = window.GetLogicalDescendants().OfType<Button>()
+                .Where(b => b.Command is not null && b.CommandParameter is string or System.ValueType)
+                .Select(b => (Name: $"{b.GetType().Name} '{ToolTip.GetTip(b) ?? b.Content}'", b.Command!, b.CommandParameter))
+                .ToList();
+            Assert.True(buttons.Count >= 5 + vm.CustomWorkflows.Count(), $"{buttons.Count} buttons with a parameter");
+            foreach (var (name, command, parameter) in buttons)
+            {
+                var ex = Record.Exception(() => command.Execute(parameter));
+                Assert.True(ex is null, $"{name} ({parameter!.GetType().Name} {parameter}): {ex}");
+            }
+            vm.HandleWorkflowSelected(0);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(0, vm.SelectedWorkflowIndex);
+            vm.HandleWorkflowSelected(Shown);
+            Dispatcher.UIThread.RunJobs();
             window.Close();
 
             // Saved: every chain keeps its model.
