@@ -167,9 +167,11 @@
             <TextBlock Classes="sidebarLabel" TextTrimming="CharacterEllipsis" Text="Default Workflows" />
           </StackPanel>
 
-          <Button Classes="sidebarItem" Command="{Binding HandleWorkflowSelected}" CommandParameter="0"
+          <Button Classes="sidebarItem" Command="{Binding HandleWorkflowSelected}"
                   ToolTip.Tip="{Binding Workflows[0].WorkflowName}"
                   Classes.active="{Binding Workflows[0].ActiveWorkflow}">
+            <!-- An Int32, not the string "0": Avalonia 12 passes a method command's parameter as is. -->
+            <Button.CommandParameter><x:Int32>0</x:Int32></Button.CommandParameter>
             <DockPanel>
               <materialIcons:MaterialIcon Kind="Book" VerticalAlignment="Center" />
               <TextBlock Classes="sidebarLabel" Margin="5,0,5,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Text="{Binding Workflows[0].WorkflowName}" />
@@ -432,10 +434,10 @@
                 <StackPanel Classes="row" IsVisible="{Binding CurrentWorkflow.ModeScaleSelected}">
                   <ContentControl Classes="hint" Content="Scale Factor"
                                   ToolTip.Tip="All images will be upscaled by the specified scaling factor. For example, a factor of 2x will double the width and height of each image." />
-                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is1x}" Content="1x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}" CommandParameter="1" />
-                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is2x}" Content="2x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}" CommandParameter="2" />
-                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is3x}" Content="3x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}" CommandParameter="3" />
-                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is4x}" Content="4x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}" CommandParameter="4" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is1x}" Content="1x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>1</x:Int32></ToggleButton.CommandParameter></ToggleButton>
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is2x}" Content="2x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>2</x:Int32></ToggleButton.CommandParameter></ToggleButton>
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is3x}" Content="3x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>3</x:Int32></ToggleButton.CommandParameter></ToggleButton>
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.Is4x}" Content="4x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>4</x:Int32></ToggleButton.CommandParameter></ToggleButton>
                 </StackPanel>
 
                 <StackPanel Classes="row" IsVisible="{Binding CurrentWorkflow.ModeHeightSelected}">
