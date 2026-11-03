@@ -71,16 +71,17 @@ const string SevenZipSha256    = "081df9e9311dfd9c9e0e98c1c80180b99bb51e4cb24156
 const string OrtDmlVersion     = "1.24.4";                // Microsoft.ML.OnnxRuntime.DirectML (NuGet)
 const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.DirectML (NuGet)
 
-// The upscaling backend (yosh repo, crates/mangajanai-cli): mangajanai_upscale.exe, built on
-// yosh-image + libaji, released on its own mangajanai-cli-v* tags. MANGAJANAI_CLI_LOCAL overrides it
-// with a local build.
-const string CliRepo           = "the-database/yosh";
-// v0.1.4: --model-info and HINT lines (each model's precision, and a hint when a faster export would
-// run on this GPU and backend), compute_capability in --list-devices, and it runs exactly the model
-// file it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
-const string CliVersion        = "mangajanai-cli-v0.1.4";
+// The upscaling backend: mangajanai_upscale.exe from the-database/MangaJaNaiCLI (until v0.1.4 it was
+// yosh's crates/mangajanai-cli, released there on mangajanai-cli-v* tags), built on yosh-image +
+// libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
+const string CliRepo           = "the-database/MangaJaNaiCLI";
+// v0.2.0: images with uniform transparency are upscaled once instead of twice, varying transparency gets
+// chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
+// --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
+// it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
+const string CliVersion        = "v0.2.0";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
-const string CliSha256         = "d4501d6e3c8eaf14147700d4849412ee54fce2f62d062b54ebf3ed02aec2e2e7";
+const string CliSha256         = "500f1c48e259b87e3f456293c0ee51ad2f1e6f3dc55a9f645e9ec0f1e5081399";
 
 // The default ONNX models, published as archives on each model's MangaJaNai release, one archive per
 // component pack. Every file is named <checkpoint>_<precision of the ONNX itself> (fp16, bf16 or fp32),
@@ -554,8 +555,8 @@ void WriteThirdPartyNotices()
         "TensorRT-RTX-Acknowledgements.txt.\n\n" +
         "aji.dll / aji_trt.dll / aji_dml.dll / aji_trtrtx.dll:\n" +
         "https://github.com/the-database/animejanai-inference\n\n" +
-        "mangajanai_upscale.exe (built on yosh-engine):\n" +
-        "https://github.com/the-database/yosh\n";
+        "mangajanai_upscale.exe (MangaJaNaiCLI, built on yosh-image):\n" +
+        "https://github.com/the-database/MangaJaNaiCLI\n";
     File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"), notice);
 }
 
