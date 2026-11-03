@@ -54,12 +54,14 @@ const string CudartSha256Win   = "e6663f3d3e8949eedc2d5ab92c7c5b9fa3f2a222086d91
 
 // the-database/animejanai-inference. v0.18.0 added the still-image ABI (aji_image.h) the backend uses;
 // v0.18.2 makes DirectML device ids the card's PCI address, so they match TensorRT's and survive reboots;
-// v0.19.0 makes DirectML ~35-40% faster and adds TensorRT-RTX; v0.19.1 fixes its engine-build teardown.
-const string AjiVersion        = "v0.19.1";
-const string AjiSha256Win      = "855fa197bc01a3621ee8265e0c19a9238024443cd9cd4a4692e5205c1716beee";
+// v0.19.0 makes DirectML ~35-40% faster and adds TensorRT-RTX; v0.19.1 fixes its engine-build teardown;
+// v0.21.0 tiles on the GPU (TensorRT/TensorRT-RTX), speeds up DirectML's tiling, and fixes tile seams in
+// MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
+const string AjiVersion        = "v0.21.0";
+const string AjiSha256Win      = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771a3d557a5363359be19";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). It becomes the trt-rtx pack, never part of the core.
-const string AjiTrtRtxSha256Win = "87742617e83c3e55a990d9e0355b9342c31a4fb5c283506908f9fcb05263defe";
+const string AjiTrtRtxSha256Win = "213204243f947affebbe32db99379a4fea74cc1ab50657370dfff26fb72df0de";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra": 7za.exe for the updater's packs
 // 7-Zip's own GitHub releases (ip7z/7zip; same file as www.7-zip.org/a/, which CI runners have
 // failed to resolve). 7z2602-extra.7z:
