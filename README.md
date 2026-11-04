@@ -34,12 +34,12 @@ The upscaling backend, `inference\mangajanai_upscale.exe`, also runs on its own:
 - [OpenModelDB](https://openmodeldb.info/): Repository of AI upscaling models.
 
 ## Related Projects
-MangaJaNai GUI is part of the JaNai suite: see [animejan.ai](https://animejan.ai) for an overview of all the apps.
 - [MangaJaNai](https://github.com/the-database/MangaJaNai): Main repository for manga upscaling models.
-- [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI): Batch upscaling from the command line, and this app's upscaling backend.
-- [yosh](https://github.com/the-database/yosh): A fast manga, comic and image reader, with an optional AI upscaling add-on.
-- [VideoJaNai](https://github.com/the-database/VideoJaNai): Upscale video files, on Windows and Linux.
-- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Software for training upscaling models.
+- [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI): The same upscaling from the command line, on Windows and Linux
+- [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai): Real-time anime upscaling in mpv
+- [VideoJaNai](https://github.com/the-database/VideoJaNai): Upscale video files
+- [yosh](https://github.com/the-database/yosh): Fast manga, comic and image reader
+- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Train your own upscaling models
 
 ## Acknowledgments 
 - [chaiNNer](https://github.com/chaiNNer-org/chaiNNer): General purpose tool for AI upscaling. MangaJaNai GUI 1.x used a modified version of its backend for running upscaling models.
