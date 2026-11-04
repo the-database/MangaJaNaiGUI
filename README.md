@@ -27,15 +27,18 @@ Put your own models in the models folder (App Settings > Models > Open Models Fo
 Version 2.0 uses a new installer and doesn't update itself from 1.x. Install 2.0 with the setup above: it removes the 1.x install, its Python backend and its default PyTorch models, and keeps your workflows and the models you added. Workflows that use the default models switch to their ONNX versions automatically. Don't uninstall 1.x first; its uninstaller deletes the models folder, including any models you added.
 
 ### Command line
-The upscaling backend, `inference\mangajanai_upscale.exe`, also runs on its own: `mangajanai_upscale.exe --help`.
+The upscaling backend, `inference\mangajanai_upscale.exe`, also runs on its own: `mangajanai_upscale.exe --help`. For a full command line with its own settings file, which also runs on Linux, see [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI), the project this backend comes from.
 
 
 ## Resources
 - [OpenModelDB](https://openmodeldb.info/): Repository of AI upscaling models.
 
 ## Related Projects
-- [MangaJaNai](https://github.com/the-database/mangajanai): Main repository for manga upscaling models.
-- [VideoJaNai](https://github.com/the-database/VideoJaNai): Windows GUI for video upscaling with extremely fast performance.
+MangaJaNai GUI is part of the JaNai suite: see [animejan.ai](https://animejan.ai) for an overview of all the apps.
+- [MangaJaNai](https://github.com/the-database/MangaJaNai): Main repository for manga upscaling models.
+- [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI): Batch upscaling from the command line, and this app's upscaling backend.
+- [yosh](https://github.com/the-database/yosh): A fast manga, comic and image reader, with an optional AI upscaling add-on.
+- [VideoJaNai](https://github.com/the-database/VideoJaNai): Upscale video files, on Windows and Linux.
 - [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Software for training upscaling models.
 
 ## Acknowledgments 
