@@ -27,16 +27,19 @@ Put your own models in the models folder (App Settings > Models > Open Models Fo
 Version 2.0 uses a new installer and doesn't update itself from 1.x. Install 2.0 with the setup above: it removes the 1.x install, its Python backend and its default PyTorch models, and keeps your workflows and the models you added. Workflows that use the default models switch to their ONNX versions automatically. Don't uninstall 1.x first; its uninstaller deletes the models folder, including any models you added.
 
 ### Command line
-The upscaling backend, `inference\mangajanai_upscale.exe`, also runs on its own: `mangajanai_upscale.exe --help`.
+The upscaling backend, `inference\mangajanai_upscale.exe`, also runs on its own: `mangajanai_upscale.exe --help`. For a full command line with its own settings file, which also runs on Linux, see [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI), the project this backend comes from.
 
 
 ## Resources
 - [OpenModelDB](https://openmodeldb.info/): Repository of AI upscaling models.
 
 ## Related Projects
-- [MangaJaNai](https://github.com/the-database/mangajanai): Main repository for manga upscaling models.
-- [VideoJaNai](https://github.com/the-database/VideoJaNai): Windows GUI for video upscaling with extremely fast performance.
-- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Software for training upscaling models.
+- [MangaJaNai](https://github.com/the-database/MangaJaNai): Main repository for manga upscaling models.
+- [MangaJaNaiCLI](https://github.com/the-database/MangaJaNaiCLI): The same upscaling from the command line, on Windows and Linux
+- [mpv-AnimeJaNai](https://github.com/the-database/mpv-AnimeJaNai): Real-time anime upscaling in mpv
+- [VideoJaNai](https://github.com/the-database/VideoJaNai): Upscale video files
+- [yosh](https://github.com/the-database/yosh): Fast manga, comic and image reader
+- [traiNNer-redux](https://github.com/the-database/traiNNer-redux): Train your own upscaling models
 
 ## Acknowledgments 
 - [chaiNNer](https://github.com/chaiNNer-org/chaiNNer): General purpose tool for AI upscaling. MangaJaNai GUI 1.x used a modified version of its backend for running upscaling models.
