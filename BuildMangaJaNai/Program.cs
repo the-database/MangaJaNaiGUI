@@ -80,6 +80,8 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.19.0 makes DirectML ~35-40% faster and adds TensorRT-RTX; v0.19.1 fixes its engine-build teardown;
 // v0.21.0 tiles on the GPU (TensorRT/TensorRT-RTX), speeds up DirectML's tiling, and fixes tile seams in
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
+// Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
+// (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
 const string AjiVersion        = "v0.21.0";
 const string AjiSha256Win      = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771a3d557a5363359be19";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
