@@ -16,7 +16,7 @@ namespace MangaJaNaiConverterGui.Tests
         public string AppStatePath => Path.Combine(AppStateFolder, AppStateFilename);
         public string LogsDirectory => AppStateFolder;
         public string InferenceDirectory => Path.Combine(AppStateFolder, "no-such-inference-dir");
-        public string BackendExePath => Path.Combine(InferenceDirectory, "mangajanai_upscale.exe");
+        public string BackendExePath => Path.Combine(InferenceDirectory, BackendService.Exe("mangajanai_upscale"));
         public bool IsBackendInstalled => false;
         public bool IsTensorRtRtxInstalled => false;
         public bool IsTensorRtRuntimeInstalled => false;

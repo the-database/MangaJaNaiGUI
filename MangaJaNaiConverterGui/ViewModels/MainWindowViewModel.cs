@@ -1171,7 +1171,9 @@ namespace MangaJaNaiConverterGui.ViewModels
                 var sm = (string?)gpu?["sm"] ?? "";
                 GpuStatusText = nvidia
                     ? $"{gpuName} ({sm})"
-                    : "No NVIDIA GPU detected — using the built-in DirectML engine.";
+                    : UpscaleBackends.DirectMlAvailable
+                        ? "No NVIDIA GPU detected — using the built-in DirectML engine."
+                        : "No NVIDIA GPU detected. On Linux, MangaJaNai GUI needs an NVIDIA GPU (TensorRT).";
 
                 var packs = new List<ComponentItem>();
                 foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? [])
@@ -1544,6 +1546,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 process.StartInfo.WorkingDirectory = _backendService.InferenceDirectory;
                 process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
                 process.StartInfo.StandardErrorEncoding = Encoding.UTF8;
+                SetBackendEnvironment(process.StartInfo);
 
                 Directory.CreateDirectory(_backendService.LogsDirectory);
                 using (var outputFile = new StreamWriter(Path.Combine(_backendService.LogsDirectory, "upscale.log"), append: false))
@@ -1676,6 +1679,20 @@ namespace MangaJaNaiConverterGui.ViewModels
         // Run the backend for a short query (e.g. --list-devices) and return its stdout.
         private Task<string> RunBackendQuery(params string[] arguments) => RunBackendQuery(null, arguments);
 
+        // Linux: libaji_trt.so asks for the TensorRT and CUDA libraries by soname, and the ones the
+        // trt-runtime component puts beside it are found through the loader path (which trtexec, run by
+        // the backend for engine builds, inherits).
+        private void SetBackendEnvironment(ProcessStartInfo startInfo)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                return;
+            }
+            var dir = _backendService.InferenceDirectory;
+            var ldPath = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+            startInfo.Environment["LD_LIBRARY_PATH"] = string.IsNullOrEmpty(ldPath) ? dir : $"{dir}:{ldPath}";
+        }
+
         // The same, killed (and returning empty) after the timeout.
         private async Task<string> RunBackendQuery(TimeSpan? timeout, string[] arguments)
         {
@@ -1695,6 +1712,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             process.StartInfo.CreateNoWindow = true;
             process.StartInfo.WorkingDirectory = _backendService.InferenceDirectory;
             process.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+            SetBackendEnvironment(process.StartInfo);
             process.Start();
             var stdout = process.StandardOutput.ReadToEndAsync();
             _ = process.StandardError.ReadToEndAsync();
@@ -1787,7 +1805,9 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
             var upscaleBackend = UpscaleBackends.UpscaleBackend(UpscaleBackend, devices.Count > 0 ? backend : null);
             DeviceStatusText = MissingBackendComponents() ?? (devices.Count == 0
-                ? "No compatible GPU found. MangaJaNai GUI needs an NVIDIA GPU (TensorRT) or a DirectX 12 GPU (DirectML)."
+                ? UpscaleBackends.DirectMlAvailable
+                    ? "No compatible GPU found. MangaJaNai GUI needs an NVIDIA GPU (TensorRT) or a DirectX 12 GPU (DirectML)."
+                    : "No compatible GPU found. On Linux, MangaJaNai GUI needs an NVIDIA GPU (TensorRT) and its driver."
                 : upscaleBackend == UpscaleBackends.CliTensorRtRtx
                     ? "Using TensorRT-RTX. If it can't run on this GPU, TensorRT is used instead."
                     : $"Using {UpscaleBackends.DisplayName(upscaleBackend)}.");
@@ -2239,7 +2259,22 @@ namespace MangaJaNaiConverterGui.ViewModels
             await Task.Run(() =>
             {
                 Directory.CreateDirectory(_backendService.UserModelsDirectory);
-                Process.Start("explorer.exe", _backendService.UserModelsDirectory);
+                if (OperatingSystem.IsWindows())
+                {
+                    Process.Start("explorer.exe", _backendService.UserModelsDirectory);
+                }
+                else
+                {
+                    // the desktop's file manager; a system without xdg-open just doesn't open one
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo("xdg-open") { ArgumentList = { _backendService.UserModelsDirectory }, UseShellExecute = false });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex);
+                    }
+                }
             });
         }
     }
@@ -2276,20 +2311,26 @@ namespace MangaJaNaiConverterGui.ViewModels
             ModelVariants.MangaJaNaiPack => "MangaJaNai models (grayscale manga)",
             ModelVariants.IllustrationJaNaiPack => "IllustrationJaNai models (color)",
             ModelVariants.IllustrationJaNaiBf16Pack => "IllustrationJaNai DAT2/HAT, bf16 (NVIDIA)",
-            ModelVariants.IllustrationJaNaiFp32Pack => "IllustrationJaNai DAT2/HAT, fp32 (DirectML, older NVIDIA)",
+            ModelVariants.IllustrationJaNaiFp32Pack => UpscaleBackends.DirectMlAvailable
+                ? "IllustrationJaNai DAT2/HAT, fp32 (DirectML, older NVIDIA)"
+                : "IllustrationJaNai DAT2/HAT, fp32 (older NVIDIA)",
             _ when name.StartsWith("trt-sm") => $"TensorRT kernels: {SmFamily(name[6..])}",
             _ => name,
         };
 
         public string Description => Name switch
         {
-            "trt-runtime" => "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling uses the slower DirectML engine. TensorRT-RTX needs it too.",
+            "trt-runtime" => UpscaleBackends.DirectMlAvailable
+                ? "The fastest upscaling engine, for NVIDIA GPUs. Without it, upscaling uses the slower DirectML engine. TensorRT-RTX needs it too."
+                : "The upscaling engine, for NVIDIA GPUs.",
             TensorRtRtxPack => "The fastest NVIDIA backend, installed by default on RTX 20 / GTX 16 series and newer. It builds engines in seconds instead of a TensorRT build's few minutes and upscales faster; output is equivalent to TensorRT's, though not bit-identical. Auto uses it when it's installed. Needs the TensorRT runtime, which it falls back to if it can't run.",
             "trt-ptx" => "Fallback kernels for NVIDIA GPUs without a dedicated kernel pack. The first engine build is slower.",
             ModelVariants.MangaJaNaiPack => "The default models for grayscale manga pages, one per source resolution.",
             ModelVariants.IllustrationJaNaiPack => "The default models for color pages and illustrations. The larger DAT2 and HAT models come separately, in the version that suits your GPU.",
             ModelVariants.IllustrationJaNaiBf16Pack => "Faster versions of the DAT2 and HAT models for NVIDIA RTX 30-series and newer, used with the TensorRT and TensorRT-RTX backends.",
-            ModelVariants.IllustrationJaNaiFp32Pack => "The DAT2 and HAT models for DirectML and older NVIDIA GPUs (RTX 20 / GTX 16 series and older).",
+            ModelVariants.IllustrationJaNaiFp32Pack => UpscaleBackends.DirectMlAvailable
+                ? "The DAT2 and HAT models for DirectML and older NVIDIA GPUs (RTX 20 / GTX 16 series and older)."
+                : "The DAT2 and HAT models for older NVIDIA GPUs (RTX 20 / GTX 16 series and older).",
             _ when Name.StartsWith("trt-sm") => "Engine-builder kernels matched to your GPU generation.",
             _ => "",
         };

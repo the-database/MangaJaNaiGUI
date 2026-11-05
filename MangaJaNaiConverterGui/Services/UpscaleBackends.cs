@@ -1,4 +1,5 @@
 using MangaJaNaiConverterGui.ViewModels;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -21,17 +22,30 @@ namespace MangaJaNaiConverterGui.Services
         public const string CliTensorRtRtx = "tensorrt-rtx";
         public const string CliDirectMl = "directml";
 
-        public static string Normalize(string? choice) =>
-            choice is TensorRt or TensorRtRtx or DirectMl ? choice : Auto;
+        // DirectML and TensorRT-RTX run on Windows only (libaji builds neither for Linux), so on Linux
+        // TensorRT is the one backend and Auto means TensorRT. The App Settings choices follow these.
+        public static bool DirectMlAvailable => OperatingSystem.IsWindows();
+        public static bool TensorRtRtxAvailable => OperatingSystem.IsWindows();
+        public static bool TensorRtOnly => !DirectMlAvailable;
+
+        public static string Normalize(string? choice) => Normalize(choice, OperatingSystem.IsWindows());
+
+        // windows: whether DirectML and TensorRT-RTX exist here; a choice that doesn't counts as Auto.
+        public static string Normalize(string? choice, bool windows) =>
+            choice is TensorRt || (windows && choice is TensorRtRtx or DirectMl) ? choice! : Auto;
 
         // The backends asked for --list-devices, in order, until one lists a device. Auto: TensorRT-RTX
-        // when its component is installed, then TensorRT where it can run, else DirectML. TensorRT-RTX:
-        // its own list, else TensorRT's (the same cards, under the same PCI-address ids).
-        public static string[] DeviceQueryOrder(string? choice, bool trtRtxInstalled) => Normalize(choice) switch
+        // when its component is installed, then TensorRT where it can run, else DirectML (Windows).
+        // TensorRT-RTX: its own list, else TensorRT's (the same cards, under the same PCI-address ids).
+        public static string[] DeviceQueryOrder(string? choice, bool trtRtxInstalled) =>
+            DeviceQueryOrder(choice, trtRtxInstalled, OperatingSystem.IsWindows());
+
+        public static string[] DeviceQueryOrder(string? choice, bool trtRtxInstalled, bool windows) => Normalize(choice, windows) switch
         {
             TensorRt => [CliTensorRt],
             TensorRtRtx => [CliTensorRtRtx, CliTensorRt],
             DirectMl => [CliDirectMl],
+            _ when !windows => [CliTensorRt],
             _ => trtRtxInstalled ? [CliTensorRtRtx, CliTensorRt, CliDirectMl] : [CliTensorRt, CliDirectMl],
         };
 
