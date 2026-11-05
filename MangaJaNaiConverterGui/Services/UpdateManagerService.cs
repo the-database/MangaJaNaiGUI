@@ -7,15 +7,16 @@ using System.Threading.Tasks;
 
 namespace MangaJaNaiConverterGui.Services
 {
-    // Replaces Velopack: drives the bundled MangaJaNaiUpdater.exe (the Inno-installer distribution
-    // model). The updater lives at the install root next to MangaJaNaiConverterGui.exe.
+    // Replaces Velopack: drives the bundled MangaJaNaiUpdater (the Inno-installer distribution model;
+    // on Linux the tarball install). The updater lives at the install root next to the app.
     public class UpdateManagerService : IUpdateManagerService
     {
         public string InstallDir => AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, '/');
 
-        public string UpdaterPath => Path.Combine(InstallDir, "MangaJaNaiUpdater.exe");
+        public string UpdaterPath => Path.Combine(InstallDir, BackendService.Exe("MangaJaNaiUpdater"));
 
-        // "Installed" = running from an Inno install (the updater ships next to the app).
+        // "Installed" = running from an Inno install or a Linux tarball (the updater ships next to the
+        // app; the AppImage has none, it updates by being replaced).
         public bool IsInstalled => File.Exists(UpdaterPath);
 
         public string AppVersion
@@ -60,7 +61,9 @@ namespace MangaJaNaiConverterGui.Services
             {
                 FileName = UpdaterPath,
                 Arguments = "--apply",
-                UseShellExecute = true,
+                // Windows: shell-exec gives the updater its own console window. On Linux shell-exec
+                // would hand the binary to xdg-open.
+                UseShellExecute = OperatingSystem.IsWindows(),
                 WorkingDirectory = InstallDir,
             });
         }
