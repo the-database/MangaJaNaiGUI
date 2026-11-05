@@ -37,10 +37,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'  # Must match <TargetFramework> across the projects
 
@@ -121,7 +121,7 @@ jobs:
       VER: ${{ github.event.inputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Publish package builder (host RID = linux-x64)
         run: dotnet publish BuildMangaJaNai/BuildMangaJaNai.csproj -c Release -o builder
