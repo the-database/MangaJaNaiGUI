@@ -26,9 +26,23 @@ namespace MangaJaNaiConverterGui.Tests
         [InlineData("TensorRT-RTX", true, new[] { "tensorrt-rtx", "tensorrt" })]
         [InlineData("DirectML", true, new[] { "directml" })]
         public void DeviceListQueries(string? choice, bool trtRtxInstalled, string[] backends) =>
-            Assert.Equal(backends, UpscaleBackends.DeviceQueryOrder(choice, trtRtxInstalled));
+            Assert.Equal(backends, UpscaleBackends.DeviceQueryOrder(choice, trtRtxInstalled, windows: true));
 
+        // Linux has TensorRT only: DirectML and TensorRT-RTX (from a copied settings file) are Auto,
+        // which is TensorRT.
         [Theory]
+        [InlineData("Auto")]
+        [InlineData("TensorRT")]
+        [InlineData("TensorRT-RTX")]
+        [InlineData("DirectML")]
+        [InlineData(null)]
+        public void LinuxDeviceListQueries(string? choice)
+        {
+            Assert.Equal(["tensorrt"], UpscaleBackends.DeviceQueryOrder(choice, trtRtxInstalled: false, windows: false));
+            Assert.Equal(choice == "TensorRT" ? "TensorRT" : "Auto", UpscaleBackends.Normalize(choice, windows: false));
+        }
+
+        [Theory(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         [InlineData("Auto", "tensorrt-rtx", "tensorrt-rtx")]
         [InlineData("Auto", "tensorrt", "tensorrt")]
         [InlineData("Auto", "directml", "directml")]
@@ -61,21 +75,21 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Null(UpscaleBackends.MissingComponentsMessage("TensorRT-RTX", true, true));
         }
 
-        [Fact]
+        [Fact(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         public void MissingTensorRtRtxNamesTheComponentToInstall()
         {
             var message = UpscaleBackends.MissingComponentsMessage("TensorRT-RTX", false, true);
             Assert.Equal("TensorRT-RTX needs the \"TensorRT-RTX\" component. Install it in App Settings > Components, or choose another backend.", message);
         }
 
-        [Fact]
+        [Fact(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         public void MissingTensorRtRuntimeNamesTheComponentToInstall()
         {
             var message = UpscaleBackends.MissingComponentsMessage("TensorRT-RTX", true, false);
             Assert.Equal("TensorRT-RTX needs the \"TensorRT runtime\" component. Install it in App Settings > Components, or choose another backend.", message);
         }
 
-        [Fact]
+        [Fact(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         public void MissingBothNamesBoth()
         {
             var message = UpscaleBackends.MissingComponentsMessage("TensorRT-RTX", false, false);
@@ -119,7 +133,7 @@ namespace MangaJaNaiConverterGui.Tests
         public void PrecisionPacksShown(string name, bool installed, bool recommended, bool nvidia, bool directMl, bool shown) =>
             Assert.Equal(shown, ComponentItem.IsShown(name, installed, recommended, nvidia, directMl));
 
-        [Theory]
+        [Theory(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         [InlineData("models-mangajanai", "MangaJaNai models (grayscale manga)")]
         [InlineData("models-illustrationjanai", "IllustrationJaNai models (color)")]
         [InlineData("models-illustrationjanai-bf16", "IllustrationJaNai DAT2/HAT, bf16 (NVIDIA)")]
@@ -145,7 +159,7 @@ namespace MangaJaNaiConverterGui.Tests
              new() { Id = "164787", Name = "NVIDIA GeForce RTX 3060", ComputeCapability = "8.6" }];
 
         // App Settings' setup check: only with DirectML chosen while an NVIDIA GPU is usable.
-        [Theory]
+        [Theory(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         [InlineData("DirectML", "tensorrt-rtx", "164787", "TensorRT-RTX is much faster on NVIDIA GeForce RTX 3060.")]
         [InlineData("DirectML", "tensorrt-rtx", "999", "TensorRT-RTX is much faster on NVIDIA GeForce RTX 4090.")]
         [InlineData("DirectML", "tensorrt", null, "TensorRT is much faster on NVIDIA GeForce RTX 4090.")]
@@ -164,7 +178,7 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Null(UpscaleBackends.FasterBackendHint("DirectML", null, "tensorrt", null));
         }
 
-        [Theory]
+        [Theory(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         [InlineData("Auto", true, false, false, false)]
         [InlineData("TensorRT", false, true, false, false)]
         [InlineData("TensorRT-RTX", false, false, true, false)]

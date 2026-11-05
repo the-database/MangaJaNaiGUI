@@ -1,0 +1,105 @@
+#!/bin/sh
+# AppImage entrypoint for MangaJaNai GUI.
+#
+# The AppImage mounts read-only, and carries the TensorRT runtime and the default models. Settings, the
+# user's models and the TensorRT engines live where an installed copy keeps them
+# ($XDG_CONFIG_HOME/MangaJaNaiConverterGui, MANGAJANAI_STATE_DIR). The TensorRT builder kernels for this
+# GPU (needed to build engines; cached engines run without them) are fetched once into
+# $XDG_DATA_HOME/MangaJaNaiGUI. The updater is not shipped in the AppImage: a new version is a new
+# AppImage.
+set -eu
+
+HERE="$(dirname "$(readlink -f "$0")")"
+
+# Desktop integration:
+#   <AppImage> --install     register a menu entry
+#   <AppImage> --uninstall   remove it
+case "${1:-}" in
+  --install|--uninstall)
+    APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    ICONS="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/256x256/apps"
+    desktop="$APPS/mangajanai-gui.desktop"
+    if [ "$1" = "--uninstall" ]; then
+        rm -f "$desktop" "$ICONS/mangajanai-gui.png"
+        update-desktop-database "$APPS" 2>/dev/null || true
+        echo "Removed the MangaJaNai GUI menu entry."
+        echo "(settings, models and engines in ${XDG_CONFIG_HOME:-$HOME/.config}/MangaJaNaiConverterGui and the"
+        echo " kernels in ${XDG_DATA_HOME:-$HOME/.local/share}/MangaJaNaiGUI are kept; delete those folders to clear them)"
+        exit 0
+    fi
+    target="${APPIMAGE:-$HERE/AppRun}"
+    [ -z "${APPIMAGE:-}" ] && echo "warning: \$APPIMAGE unset (run the .AppImage directly, not extracted); using $target" >&2
+    mkdir -p "$APPS" "$ICONS"
+    [ -f "$HERE/mangajanai-gui.png" ] && cp -f "$HERE/mangajanai-gui.png" "$ICONS/mangajanai-gui.png"
+    cat > "$desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=MangaJaNai GUI
+Comment=Upscale manga and images with ONNX models on NVIDIA TensorRT
+Exec="$target"
+TryExec=$target
+Icon=mangajanai-gui
+Terminal=false
+Categories=Graphics;
+StartupNotify=true
+EOF
+    update-desktop-database "$APPS" 2>/dev/null || true
+    echo "Installed: 'MangaJaNai GUI' now appears in your app menu."
+    echo "  entry:    $desktop"
+    echo "  launches: $target"
+    exit 0
+    ;;
+esac
+
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}/MangaJaNaiGUI"
+STATE="${XDG_CONFIG_HOME:-$HOME/.config}/MangaJaNaiConverterGui"
+mkdir -p "$DATA/inference" "$STATE"
+
+# The builder kernels for this GPU, from this version's release: component-trt-sm<N>-linux-x64.7z, or
+# the PTX fallback for a GPU without its own pack. The fetch runs in the background so the window
+# appears right away; it's only needed once an engine is built. Progress goes to $DATA/fetch.log. 7zz
+# is copied out of the image first: the mount goes away when the app exits, and the fetch may outlive
+# it. A failure is non-fatal (offline, or a draft release whose assets need auth).
+ver="$(cat "$HERE/version.txt" 2>/dev/null || echo "")"
+relbase="https://github.com/the-database/MangaJaNaiGUI/releases/download/${ver}"
+sm="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
+need_sm=0
+[ -n "$sm" ] && ! ls "$DATA/inference"/libnvinfer_builder_resource_* >/dev/null 2>&1 && need_sm=1
+# One fetch at a time; the lock holds the fetching shell's pid, so a lock left by a fetch that was
+# killed is noticed and cleared on the next launch.
+lock="$DATA/.fetch.lock"
+if [ -f "$lock" ] && ! kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+    rm -f "$lock"
+fi
+if [ $need_sm = 1 ] && [ -n "$ver" ] && command -v curl >/dev/null 2>&1 && [ ! -f "$lock" ]; then
+    cp -f "$HERE/7zz" "$DATA/7zz" 2>/dev/null || true
+    export DATA relbase sm lock
+    # setsid: its own session, so closing the app (or Ctrl+C in its terminal) doesn't stop it
+    fetcher='
+        echo $$ > "$lock"
+        trap '\''rm -f "$lock"'\'' EXIT
+        for pack in "trt-sm$sm" trt-ptx; do
+            asset="component-$pack-linux-x64.7z"
+            echo "MangaJaNai GUI: fetching $asset (one-time)..."
+            if curl -fsSL "$relbase/$asset" -o "$DATA/$asset.part"; then
+                "$DATA/7zz" x -snl -y -o"$DATA" "$DATA/$asset.part" >/dev/null 2>&1 || true
+                rm -f "$DATA/$asset.part"
+                break
+            fi
+            rm -f "$DATA/$asset.part"
+            echo "MangaJaNai GUI: could not fetch $asset."
+        done
+        true'
+    if command -v setsid >/dev/null 2>&1; then
+        setsid sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+    else
+        nohup sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+    fi
+fi
+
+export MANGAJANAI_STATE_DIR="$STATE"
+# The backend and trtexec load the TensorRT runtime from the image (the app adds that folder itself)
+# and the fetched builder kernels from $DATA.
+export LD_LIBRARY_PATH="$DATA/inference${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+cd "$STATE"
+exec "$HERE/MangaJaNaiConverterGui" "$@"

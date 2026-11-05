@@ -20,9 +20,9 @@ namespace MangaJaNaiConverterGui.Services
         private bool Installed => _updateManagerService?.IsInstalled ?? false;
 
         // MANGAJANAI_STATE_DIR redirects the saved app state (workflows, settings), so test and dev
-        // launches never touch a real install's state. An install keeps settings and user models in
-        // %APPDATA% (where 1.x kept them too, so they carry over); a dev build next to the working
-        // directory.
+        // launches never touch a real install's state (the Linux AppImage points it at the same folder
+        // an install uses). An install keeps settings and user models in %APPDATA% (where 1.x kept them
+        // too, so they carry over), on Linux in ~/.config; a dev build next to the working directory.
         public string AppStateFolder =>
             Environment.GetEnvironmentVariable("MANGAJANAI_STATE_DIR") is { Length: > 0 } stateDir
                 ? stateDir
@@ -42,15 +42,23 @@ namespace MangaJaNaiConverterGui.Services
                 ? backendDir
                 : Path.Combine(AppContext.BaseDirectory, "inference");
 
-        public string BackendExePath => Path.Combine(InferenceDirectory, "mangajanai_upscale.exe");
+        // "mangajanai_upscale" -> "mangajanai_upscale.exe" on Windows; Linux binaries carry no suffix.
+        public static string Exe(string stem) => OperatingSystem.IsWindows() ? stem + ".exe" : stem;
 
-        public bool IsBackendInstalled => File.Exists(BackendExePath) && File.Exists(Path.Combine(InferenceDirectory, "aji.dll"));
+        // libaji itself: aji.dll, or libaji.so on Linux.
+        private static string AjiLibrary => OperatingSystem.IsWindows() ? "aji.dll" : "libaji.so";
 
-        public bool IsTensorRtRtxInstalled => File.Exists(Path.Combine(InferenceDirectory, "aji_trtrtx.dll"));
+        public string BackendExePath => Path.Combine(InferenceDirectory, Exe("mangajanai_upscale"));
 
-        // trtexec.exe and cudart ship only in trt-runtime: TensorRT builds with the one, and both
+        public bool IsBackendInstalled => File.Exists(BackendExePath) && File.Exists(Path.Combine(InferenceDirectory, AjiLibrary));
+
+        // libaji builds TensorRT-RTX for Windows only.
+        public bool IsTensorRtRtxInstalled => UpscaleBackends.TensorRtRtxAvailable && File.Exists(Path.Combine(InferenceDirectory, "aji_trtrtx.dll"));
+
+        // trtexec and cudart ship only in trt-runtime: TensorRT builds with the one, and both
         // TensorRT backends link the other.
-        public bool IsTensorRtRuntimeInstalled => File.Exists(Path.Combine(InferenceDirectory, "trtexec.exe")) && HasFile(InferenceDirectory, "cudart64_*.dll");
+        public bool IsTensorRtRuntimeInstalled => File.Exists(Path.Combine(InferenceDirectory, Exe("trtexec"))) &&
+            HasFile(InferenceDirectory, OperatingSystem.IsWindows() ? "cudart64_*.dll" : "libcudart.so*");
 
         private static bool HasFile(string dir, string pattern)
         {

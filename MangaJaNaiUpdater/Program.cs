@@ -1,6 +1,7 @@
 // MangaJaNaiUpdater — keeps an installed MangaJaNai GUI folder up to date in place, and
 // manages its component packs (the in-app component manager and the installer shell this). Ships at
-// the install root next to MangaJaNaiConverterGui.exe. Ported from VideoJaNaiUpdater.
+// the install root next to MangaJaNaiConverterGui.exe (on Linux, in the tarball install). Ported from
+// VideoJaNaiUpdater.
 //
 //   MangaJaNaiUpdater.exe --check        prints UPDATE_AVAILABLE <ver> | UP_TO_DATE <ver>
 //   MangaJaNaiUpdater.exe --download     downloads + unpacks the update into update-staging/, prints UPDATE_READY <ver>
@@ -12,14 +13,16 @@
 //   MangaJaNaiUpdater.exe --auto         install everything the detected hardware needs (or refresh stale packs)
 //   MangaJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
 //
-// An update is the latest GitHub release's full package (MangaJaNaiGUI-full-package-<ver>.zip,
-// rooted at MangaJaNaiConverterGui-v<ver>/). Files the previous version shipped (manifest.json "files")
-// that the new one no longer has are removed; manifest.json "user_preserve" paths are never touched.
-// Saved settings and user models live in %APPDATA%\MangaJaNaiConverterGui, outside the install.
+// An update is the latest GitHub release's full package (MangaJaNaiGUI-full-package-<ver>.zip on
+// Windows, MangaJaNaiGUI-v<ver>-linux-x64.tar.gz on Linux, both rooted at MangaJaNaiConverterGui-v<ver>/).
+// Files the previous version shipped (manifest.json "files") that the new one no longer has are removed; manifest.json "user_preserve" paths are never touched.
+// Saved settings and user models live in %APPDATA%\MangaJaNaiConverterGui (~/.config on Linux), outside
+// the install.
 //
 // Component packs are subsets of the install (the TensorRT runtime, per-GPU-generation builder
 // resources, the default ONNX models, the TensorRT-RTX backend), emitted by BuildMangaJaNai as
-// component-<name>.7z + packs.json release assets. Archives are rooted at the install dir, so
+// component-<name>.7z + packs.json release assets (RID-suffixed on Linux: component-<name>-linux-x64.7z +
+// packs-linux-x64.json, on the same release). Archives are rooted at the install dir, so
 // extraction is installation; packs.json carries each pack's file list, so removal is deletion.
 // Installed state lives in components.json at the install root. Packs always come from the installed
 // version's release, so they match its builds.
@@ -29,6 +32,7 @@
 // packs.json + component-*.7z from a local directory.
 
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -48,6 +52,19 @@ string installDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar
 string localManifest = Path.Combine(installDir, "manifest.json");
 string appExe = ReadManifestString(localManifest, "app_executable", $"{AppName}.exe");
 string archiveTool = ReadManifestString(localManifest, "archive_tool", "7za.exe");
+// Release assets are shared across platforms on one tag, suffixed by RID on Linux (…-linux-x64.tar.gz,
+// packs-linux-x64.json, component-*-linux-x64.7z). Windows keeps its unsuffixed names. This RID picks
+// our platform's assets from a release that carries both.
+string platformRid = ReadManifestString(localManifest, "platform", "win-x64");
+bool isWinRid = platformRid == "win-x64";
+
+// NVML ships in the NVIDIA driver as nvml.dll on Windows and libnvidia-ml.so.1 on Linux; remap the
+// DllImport library name on Linux so DetectGpu works without per-OS P/Invoke declarations.
+if (!OperatingSystem.IsWindows())
+{
+    NativeLibrary.SetDllImportResolver(typeof(Nvml).Assembly, (name, asm, search) =>
+        name == "nvml.dll" ? NativeLibrary.Load("libnvidia-ml.so.1", asm, search) : IntPtr.Zero);
+}
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
@@ -81,7 +98,7 @@ try
         case "--recommend":
             return await RecommendAsync();
         default:
-            Console.WriteLine("Usage: MangaJaNaiUpdater.exe [--check|--download|--apply [--no-relaunch]|--components [--json]|--install <pack>|--remove <pack>|--auto|--recommend]");
+            Console.WriteLine("Usage: MangaJaNaiUpdater [--check|--download|--apply [--no-relaunch]|--components [--json]|--install <pack>|--remove <pack>|--auto|--recommend]");
             return 2;
     }
 }
@@ -189,16 +206,28 @@ async Task<string> StageAsync(Release release)
     string staging = Path.Combine(stagingRoot, "tree");
     Directory.CreateDirectory(work);
 
-    var asset = release.Assets.FirstOrDefault(a =>
-            a.Name.Contains("full-package-", StringComparison.OrdinalIgnoreCase) &&
-            a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+    // Linux: the tarball (…-linux-x64.tar.gz), which keeps the executables' modes. Windows: the zip.
+    var asset = (isWinRid
+            ? release.Assets.FirstOrDefault(a =>
+                a.Name.Contains("full-package-", StringComparison.OrdinalIgnoreCase) &&
+                a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+            : release.Assets.FirstOrDefault(a => a.Name.EndsWith($"-{platformRid}.tar.gz", StringComparison.Ordinal)))
         ?? throw new InvalidOperationException("No full-package asset found on the latest release.");
     string archive = Path.Combine(work, asset.Name);
     await DownloadWithProgress(asset, archive);
 
     Console.WriteLine("Extracting...");
     Directory.CreateDirectory(staging);
-    ZipFile.ExtractToDirectory(archive, staging, overwriteFiles: true);
+    if (isWinRid)
+    {
+        ZipFile.ExtractToDirectory(archive, staging, overwriteFiles: true);
+    }
+    else
+    {
+        using var file = File.OpenRead(archive);
+        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        TarFile.ExtractToDirectory(gzip, staging, overwriteFiles: true);
+    }
     TryDelete(() => Directory.Delete(work, true));
 
     string sourceRoot = FindVersionedRoot(staging);
@@ -462,7 +491,15 @@ void RelaunchApp()
     }
     try
     {
-        Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = true, WorkingDirectory = installDir });
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = true, WorkingDirectory = installDir });
+        }
+        else
+        {
+            // Shell-exec would hand the binary to xdg-open; start it directly.
+            Process.Start(new ProcessStartInfo { FileName = app, UseShellExecute = false, WorkingDirectory = installDir });
+        }
     }
     catch (Exception e) { Console.WriteLine($"Could not relaunch {DisplayName}: {e.Message}"); }
 }
@@ -535,15 +572,18 @@ async Task<PackIndex> GetPackIndexAsync()
     List<Asset> assets;
     if (!string.IsNullOrEmpty(local))
     {
-        json = File.ReadAllText(Path.Combine(local, "packs.json"));
+        string localIndex = Path.Combine(local, isWinRid ? "packs.json" : $"packs-{platformRid}.json");
+        json = File.ReadAllText(File.Exists(localIndex) ? localIndex : Path.Combine(local, "packs.json"));
         assets = Directory.GetFiles(local, "component-*.7z")
             .Select(f => new Asset(Path.GetFileName(f), f)).ToList();
     }
     else
     {
         var release = await GetInstalledReleaseAsync();
-        var idx = release.Assets.FirstOrDefault(a => a.Name == "packs.json")
-            ?? throw new InvalidOperationException($"Release {release.Tag} publishes no component packs (packs.json missing).");
+        // packs-linux-x64.json on Linux; its "asset" fields name the component-*-linux-x64.7z files.
+        string packsName = isWinRid ? "packs.json" : $"packs-{platformRid}.json";
+        var idx = release.Assets.FirstOrDefault(a => a.Name == packsName)
+            ?? throw new InvalidOperationException($"Release {release.Tag} publishes no component packs ({packsName} missing).");
         using var client = NewClient();
         json = await client.GetStringAsync(idx.Url);
         assets = release.Assets;
@@ -885,7 +925,9 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
     }
     Console.WriteLine(hasNvidia
         ? $"GPU: {gpu} ({sm}) - TensorRT recommended"
-        : "GPU: no NVIDIA device detected - using the built-in DirectML engine (no TensorRT components needed)");
+        : OperatingSystem.IsWindows()
+            ? "GPU: no NVIDIA device detected - using the built-in DirectML engine (no TensorRT components needed)"
+            : "GPU: no NVIDIA device detected - MangaJaNai GUI on Linux needs an NVIDIA GPU and driver");
     Console.WriteLine($"Recommended packs: {string.Join(", ", rec)}");
     Console.WriteLine();
     foreach (var pack in index.Packs)
@@ -1060,7 +1102,8 @@ void ExtractPack(string archive, string outDir)
     var psi = new ProcessStartInfo
     {
         FileName = Path.Combine(installDir, archiveTool),
-        Arguments = $"x \"{archive}\" -o\"{outDir}\" -y",
+        // -snl (Linux): restore symlinks as links
+        Arguments = $"x \"{archive}\" -o\"{outDir}\" {(OperatingSystem.IsWindows() ? "" : "-snl ")}-y",
         UseShellExecute = false,
         RedirectStandardOutput = true,
         RedirectStandardError = true,

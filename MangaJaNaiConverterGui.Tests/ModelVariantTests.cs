@@ -457,7 +457,7 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Equal(vm.PickerModels, chain.ModelChoices.Select(c => c.Name));
         }
 
-        [Fact]
+        [Fact(Skip = WindowsOnly.Reason, SkipType = typeof(WindowsOnly), SkipUnless = nameof(WindowsOnly.OnWindows))]
         public void DirectMlWithoutTheFp32PackIsAValidationProblem()
         {
             var (vm, chain) = VmWithChain(Dat2Bf16, OnlyBf16);
