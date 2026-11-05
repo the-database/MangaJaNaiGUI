@@ -1,29 +1,38 @@
-// Package builder for MangaJaNai GUI (Inno-installer distribution model, Windows).
-// Ported from VideoJaNai's BuildVideoJaNai, without ffmpeg/RIFE/Linux.
+// Package builder for MangaJaNai GUI (Inno-installer distribution model on Windows; tarball/AppImage on
+// Linux). Ported from VideoJaNai's BuildVideoJaNai, without ffmpeg/RIFE.
 //
 // Assembles the redistributable install tree (the app + MangaJaNaiUpdater + the inference dir: libaji,
-// the mangajanai_upscale backend, ONNX Runtime/DirectML, the VC++ runtime) and, under --packs, carves
-// the heavy optional pieces (TensorRT runtime, per-GPU-generation builder resources, the ONNX models,
-// the TensorRT-RTX backend) into component-*.7z + packs.json release assets, then slims them out
-// of the core. End users download the small core plus the packs their hardware needs.
+// the mangajanai_upscale backend, and on Windows ONNX Runtime/DirectML and the VC++ runtime) and, under
+// --packs, carves the heavy optional pieces (TensorRT runtime, per-GPU-generation builder resources, the
+// ONNX models, the TensorRT-RTX backend) into component-*.7z + packs.json release assets, then slims
+// them out of the core. End users download the small core plus the packs their hardware needs.
 //
-//   BuildMangaJaNai <version> --app-dir <dir> --updater <exe> [--packs] [--out <dir>]
+//   BuildMangaJaNai <version> [--target win-x64|linux-x64] --app-dir <dir> --updater <exe> [--packs] [--out <dir>]
+//
+// --target defaults to the host RID; every platform-varying name lives in the Platform descriptor at
+// the bottom. Linux has no DirectML and no TensorRT-RTX (libaji builds neither there), so TensorRT is
+// its one backend. Its release assets carry the RID, so both platforms share a release.
 //
 // Outputs, under --out (default: next to this exe):
 //   MangaJaNaiConverterGui-v<ver>/                    the (slim) install tree, the Inno installer's SourceDir
-//   MangaJaNaiGUI-full-package-<ver>.zip              that tree, the updater's full update
-//   packs-v<ver>/component-*.7z + packs.json          component packs (with --packs)
+//   MangaJaNaiGUI-full-package-<ver>.zip              that tree, the updater's full update (Windows)
+//   MangaJaNaiGUI-v<ver>-linux-x64.tar.gz             that tree, the Linux download and full update
+//   packs-v<ver>/component-*.7z + packs.json          component packs (with --packs; on Linux
+//                                                     component-*-linux-x64.7z + packs-linux-x64.json)
 //
 // Dev overrides (skip large downloads on local builds):
-//   TRT_LOCAL_ZIP           -> a downloaded TensorRT "-external" zip
-//   TRT_LOCAL_DIR           -> an existing inference dir holding the TensorRT runtime + cudart (e.g. VideoJaNai's)
+//   TRT_LOCAL_ZIP           -> a downloaded TensorRT "-external" zip (Windows)
+//   TRT_LOCAL_DIR           -> an existing inference dir holding the TensorRT runtime + cudart (e.g. VideoJaNai's;
+//                              on Linux, a `mangajanai setup` folder works)
+//   TRT_DEBS_DIR            -> a directory holding the pinned TensorRT .debs (Linux; still sha-checked)
 //   AJI_LOCAL_ZIP           -> a locally built aji-windows-x64.zip
 //   AJI_LOCAL_DIR           -> a directory of aji files copied flat into inference/ (with aji_trtrtx.dll
 //                              and its runtime, if it holds them)
 //   AJI_TRTRTX_LOCAL_ZIP    -> a locally built aji-trtrtx-windows-x64.zip, from the same build as the
 //                              aji files. With AJI_LOCAL_ZIP/AJI_LOCAL_DIR and without this, the released
 //                              one is not mixed in: there is no trt-rtx pack unless the dir holds it.
-//   MANGAJANAI_CLI_LOCAL    -> a local mangajanai_upscale.exe, or a directory/zip holding it
+//   MANGAJANAI_CLI_LOCAL    -> a local mangajanai_upscale.exe (Linux: mangajanai_upscale or mangajanai), or a
+//                              directory/archive holding it
 //   MANGAJANAI_MODELS_DIR   -> a local directory holding the model archives (by their asset names) and/or
 //                              loose .onnx files named by the precision rule below
 //   VC_CRT_DIR              -> a Microsoft.VC14x.CRT directory (default: found through vswhere)
@@ -31,7 +40,9 @@ using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using SevenZipExtractor;
 using System.Diagnostics;
+using System.Formats.Tar;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -39,8 +50,9 @@ using static Downloader;
 
 // Third-party component versions. Bump these together when cutting a release.
 //
-// The TensorRT runtime + trtexec come straight from NVIDIA's public download (the "-external" zip),
-// the same pins as VideoJaNai. TrtCudaVersion is its own pin, NOT derivable from TrtVersion: guessing
+// The TensorRT runtime + trtexec come straight from NVIDIA's public download (the "-external" zip on
+// Windows, the CUDA apt repo's .debs on Linux), the same pins as VideoJaNai and MangaJaNaiCLI's runtime
+// packs. TrtCudaVersion is its own pin, NOT derivable from TrtVersion: guessing
 // it 404s.
 const string TrtVersion        = "11.4.0.106";
 const string TrtCudaVersion    = "13.4";
@@ -51,6 +63,17 @@ const string TrtSha256Win      = "b6fd86301ad803492adf7a06de29ce45e3968d29637a14
 // developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.1.json).
 const string CudartVersion     = "13.4.49";
 const string CudartSha256Win   = "e6663f3d3e8949eedc2d5ab92c7c5b9fa3f2a222086d91c42bfc5a38bf2b0225";
+const string CudartSha256Linux = "ec3df9f91560db23a064c6b395d4fde17b2893f5bf954c6bd193dd03a44de522";
+
+// Linux TensorRT .debs from the CUDA repo pool; the repo's Packages index publishes these hashes.
+const string CudaAptRepo       = "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64";
+var trtDebSha256 = new Dictionary<string, string>
+{
+    ["libnvinfer11"]        = "bd24db760728779e980c8852ba87e148a0bf9fb4e69d69bc14f3bdabc0423797",
+    ["libnvinfer-plugin11"] = "a99bd3de4fd45585d4a1fce8f6a8d6415e1a7946c86d907f64af0b9b487aee66",
+    ["libnvonnxparsers11"]  = "d7b0e623e6b8d1c368a000b996938494137e2584b85e2eed8b89f7b34092436c",
+    ["libnvinfer-bin"]      = "36b0a4f11c3a15bf9f2d4eb5a33ce02b7248582eb384696a1d80a154abf005f8",
+};
 
 // the-database/animejanai-inference. v0.18.0 added the still-image ABI (aji_image.h) the backend uses;
 // v0.18.2 makes DirectML device ids the card's PCI address, so they match TensorRT's and survive reboots;
@@ -62,10 +85,14 @@ const string AjiSha256Win      = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). It becomes the trt-rtx pack, never part of the core.
 const string AjiTrtRtxSha256Win = "213204243f947affebbe32db99379a4fea74cc1ab50657370dfff26fb72df0de";
+// Linux: libaji.so + libaji_trt.so (TensorRT only).
+const string AjiSha256Linux    = "bed7999163a9aec8f9ff3367a853f3e06eb97795083e6f59e2012f7a86b2a9e9";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra": 7za.exe for the updater's packs
 // 7-Zip's own GitHub releases (ip7z/7zip; same file as www.7-zip.org/a/, which CI runners have
 // failed to resolve). 7z2602-extra.7z:
 const string SevenZipSha256    = "081df9e9311dfd9c9e0e98c1c80180b99bb51e4cb24156b5f3057fe3c259d70a";
+// Linux: the same release's standalone 7zz console, 7z2602-linux-x64.tar.xz.
+const string SevenZipSha256Linux = "41aaba7b1235304ab5aa0624530c67ae829496cd29e875925271efdccc28c03e";
 // DirectML backend runtime (aji_dml.dll loads both from its own directory). The last DirectML-flavored
 // ORT releases (DML is in sustained engineering); same pins as VideoJaNai.
 const string OrtDmlVersion     = "1.24.4";                // Microsoft.ML.OnnxRuntime.DirectML (NuGet)
@@ -82,6 +109,11 @@ const string CliRepo           = "the-database/MangaJaNaiCLI";
 const string CliVersion        = "v0.2.0";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
 const string CliSha256         = "500f1c48e259b87e3f456293c0ee51ad2f1e6f3dc55a9f645e9ec0f1e5081399";
+// Linux: the release's mangajanai-linux-x64.tar.zst. Its `mangajanai` is the same program as
+// mangajanai_upscale (one binary under two names, the GUI's --settings interface included), so it ships
+// as inference/mangajanai_upscale. The libaji it carries is left out: InstallAji supplies the same one.
+const string CliAssetLinux     = "mangajanai-linux-x64.tar.zst";
+const string CliSha256Linux    = "7ac83b73ed063aee27f3f6c2bbe20df0e14649f2d3465b73a9b9f1735afdde31";
 
 // The default ONNX models, published as archives on each model's MangaJaNai release, one archive per
 // component pack. Every file is named <checkpoint>_<precision of the ONNX itself> (fp16, bf16 or fp32),
@@ -124,7 +156,22 @@ const string ReleaseName = "MangaJaNaiGUI";
 
 if (args.Length < 1 || args[0].StartsWith("--"))
 {
-    throw new ArgumentException("Version is required.  Usage: BuildMangaJaNai <version> --app-dir <dir> --updater <exe> [--packs] [--out <dir>]");
+    throw new ArgumentException("Version is required.  Usage: BuildMangaJaNai <version> [--target win-x64|linux-x64] --app-dir <dir> --updater <exe> [--packs] [--out <dir>]");
+}
+
+var plat = (Array.IndexOf(args, "--target") is int ti and >= 0 && ti + 1 < args.Length
+        ? args[ti + 1]
+        : RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "win-x64" : "linux-x64") switch
+{
+    "win-x64" => Platform.Win,
+    "linux-x64" => Platform.Linux,
+    var rid => throw new ArgumentException($"Unsupported --target '{rid}' (use win-x64 or linux-x64)"),
+};
+Console.WriteLine($"Target: {plat.Rid}");
+if (plat.IsWindows != RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+{
+    // The Windows leg needs the 7-Zip DLL wrapper and vswhere; the Linux one dpkg-deb, tar and 7zz.
+    throw new ArgumentException($"Build {plat.Rid} on {(plat.IsWindows ? "Windows" : "Linux")}.");
 }
 
 var version = args[0];
@@ -147,6 +194,21 @@ async Task InstallSevenZip()
 {
     Console.WriteLine("Downloading 7-Zip standalone console...");
     var tag = $"{SevenZipVersion[..^2]}.{SevenZipVersion[^2..]}";   // "2602" -> "26.02"
+    if (!plat.IsWindows)
+    {
+        // The linux-x64 console ships as tar.xz; system tar avoids an archive chicken-and-egg.
+        var tarPath = Path.Combine(workDirectory, "7z-linux.tar.xz");
+        await DownloadFileAsync($"https://github.com/ip7z/7zip/releases/download/{tag}/7z{SevenZipVersion}-linux-x64.tar.xz",
+            tarPath, p => Console.WriteLine($"Downloading 7-Zip ({p}%)..."));
+        VerifySha256(tarPath, SevenZipSha256Linux);
+        var tmp = Path.Combine(workDirectory, "7z-linux");
+        Directory.CreateDirectory(tmp);
+        await RunProcess("tar", $"-xf \"{tarPath}\" -C \"{tmp}\"");
+        var dst = Path.Combine(installDirectory, plat.ArchiveTool);
+        File.Copy(Path.Combine(tmp, "7zz"), dst, true);
+        MakeExecutable(dst);
+        return;
+    }
     var downloadUrl = $"https://github.com/ip7z/7zip/releases/download/{tag}/7z{SevenZipVersion}-extra.7z";
     var targetPath = Path.Combine(workDirectory, "7z-extra.7z");
     await DownloadFileAsync(downloadUrl, targetPath, p => Console.WriteLine($"Downloading 7-Zip ({p}%)..."));
@@ -172,6 +234,11 @@ async Task InstallInferenceRuntime()
         {
             File.Copy(f, Path.Combine(inferencePath, Path.GetFileName(f)), true);
         }
+        return;
+    }
+    if (!plat.IsWindows)
+    {
+        await InstallTrtLinux();
         return;
     }
     // NVIDIA's "-external" zip. Only bin/ ships; the headers, import libs, cmake/ and python/ are
@@ -233,12 +300,82 @@ async Task InstallCudart()
     });
 }
 
-// Which inference-runtime files from NVIDIA's archives actually ship.
-static bool KeepInferenceFile(string name) =>
-    name is "nvinfer_11.dll" or "nvinfer_plugin_11.dll" or "nvonnxparser_11.dll" or "trtexec.exe" ||
-    name.StartsWith("cudart64_", StringComparison.OrdinalIgnoreCase) ||
-    name.StartsWith("nvinfer_builder_resource_", StringComparison.OrdinalIgnoreCase) ||
-    name.Contains("LICENSE", StringComparison.OrdinalIgnoreCase);
+// Linux: NVIDIA's apt packages for TensorRT, and the CUDA redistributable's cudart tarball. As in
+// MangaJaNaiCLI's runtime packs, the libraries are stored under their sonames (what libaji_trt.so and
+// trtexec ask for) rather than as symlink chains, and the builder resources keep their file names,
+// which is how libnvinfer opens them.
+async Task InstallTrtLinux()
+{
+    var root = Path.Combine(workDirectory, "debroot");
+    Directory.CreateDirectory(root);
+    var debsDir = Environment.GetEnvironmentVariable("TRT_DEBS_DIR");
+    // libnvinfer11 also carries the per-SM builder resources; libnvinfer-bin is where trtexec lives.
+    foreach (var (package, sha256) in trtDebSha256)
+    {
+        var deb = $"{package}_{TrtVersion}-1+cuda{TrtCudaVersion}_amd64.deb";
+        var targetPath = !string.IsNullOrEmpty(debsDir) && File.Exists(Path.Combine(debsDir, deb))
+            ? Path.Combine(debsDir, deb)
+            : Path.Combine(workDirectory, deb);
+        if (!File.Exists(targetPath))
+        {
+            Console.WriteLine($"Downloading {package} ({TrtVersion})...");
+            double lastProgress = -1;
+            await DownloadFileAsync($"{CudaAptRepo}/{deb}", targetPath, p =>
+            {
+                if (p >= lastProgress + 10) { Console.WriteLine($"  {package} ({p}%)..."); lastProgress = p; }
+            });
+        }
+        VerifySha256(targetPath, sha256);
+        await RunProcess("dpkg-deb", $"-x \"{targetPath}\" \"{root}\"");
+    }
+
+    var lib = Path.Combine(root, "usr", "lib", "x86_64-linux-gnu");
+    foreach (var soname in new[] { "libnvinfer.so.11", "libnvinfer_plugin.so.11", "libnvonnxparser.so.11" })
+    {
+        CopyResolved(Path.Combine(lib, soname), Path.Combine(inferencePath, soname));
+    }
+    foreach (var f in Directory.GetFiles(lib, "libnvinfer_builder_resource_*"))
+    {
+        if (new FileInfo(f).LinkTarget is null)
+        {
+            File.Copy(f, Path.Combine(inferencePath, Path.GetFileName(f)), true);
+        }
+    }
+    // libnvinfer-bin puts trtexec in /usr/bin (11.x) or /usr/src/tensorrt/bin (10.x).
+    var trtexec = new[] { Path.Combine(root, "usr", "bin", "trtexec"), Path.Combine(root, "usr", "src", "tensorrt", "bin", "trtexec") }
+        .First(File.Exists);
+    CopyResolved(trtexec, Path.Combine(inferencePath, "trtexec"));
+    MakeExecutable(Path.Combine(inferencePath, "trtexec"));
+    var copyright = Path.Combine(root, "usr", "share", "doc", "libnvinfer11", "copyright");
+    if (File.Exists(copyright))
+    {
+        File.Copy(copyright, Path.Combine(inferencePath, "TensorRT_Acknowledgements.txt"), true);
+    }
+
+    var stem = $"cuda_cudart-linux-x86_64-{CudartVersion}-archive";
+    var cudart = Path.Combine(workDirectory, $"{stem}.tar.xz");
+    Console.WriteLine($"Downloading CUDA runtime {CudartVersion}...");
+    await DownloadFileAsync($"https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/{stem}.tar.xz",
+        cudart, _ => { });
+    VerifySha256(cudart, CudartSha256Linux);
+    var cudartDir = Path.Combine(workDirectory, "cudart");
+    Directory.CreateDirectory(cudartDir);
+    await RunProcess("tar", $"-xf \"{cudart}\" -C \"{cudartDir}\"");
+    var real = Directory.GetFiles(Path.Combine(cudartDir, stem, "lib"))
+        .First(f => System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(f), @"^libcudart\.so\.\d+\.\d+\.\d+$"));
+    File.Copy(real, Path.Combine(inferencePath, "libcudart.so.13"), true);
+    File.Copy(Path.Combine(cudartDir, stem, "LICENSE"), Path.Combine(inferencePath, "CUDA_LICENSE.txt"), true);
+}
+
+// Which inference-runtime files from NVIDIA's archives (or TRT_LOCAL_DIR) actually ship.
+bool KeepInferenceFile(string name) => plat.IsWindows
+    ? name is "nvinfer_11.dll" or "nvinfer_plugin_11.dll" or "nvonnxparser_11.dll" or "trtexec.exe" ||
+      name.StartsWith("cudart64_", StringComparison.OrdinalIgnoreCase) ||
+      name.StartsWith("nvinfer_builder_resource_", StringComparison.OrdinalIgnoreCase) ||
+      name.Contains("LICENSE", StringComparison.OrdinalIgnoreCase)
+    : name is "libnvinfer.so.11" or "libnvinfer_plugin.so.11" or "libnvonnxparser.so.11" or "libcudart.so.13" or "trtexec" ||
+      name.StartsWith("libnvinfer_builder_resource_", StringComparison.Ordinal) ||
+      name.Contains("LICENSE", StringComparison.OrdinalIgnoreCase);
 
 // The TensorRT-RTX backend's files (aji-trtrtx-windows-x64.zip): aji_trtrtx.dll, the TensorRT for RTX
 // runtime (tensorrt_rtx_<M>_<m>.dll, tensorrt_onnxparser_rtx_<M>_<m>.dll) and NVIDIA's notices, which
@@ -271,6 +408,27 @@ async Task InstallAji()
 
     var localDir = Environment.GetEnvironmentVariable("AJI_LOCAL_DIR");
     var localZip = Environment.GetEnvironmentVariable("AJI_LOCAL_ZIP");
+    if (!plat.IsWindows)
+    {
+        // libaji.so + libaji_trt.so; the test tools in the tarball aren't used by the image backend.
+        string dir;
+        if (!string.IsNullOrEmpty(localDir))
+        {
+            Console.WriteLine($"Using local aji files: {localDir}");
+            dir = localDir;
+        }
+        else
+        {
+            dir = Path.Combine(workDirectory, "aji");
+            await ExtractTarZst(await DownloadAjiAsset("aji-linux-x64.tar.zst", AjiSha256Linux), dir);
+        }
+        foreach (var f in Directory.GetFiles(dir).Where(f => Path.GetFileName(f) is "libaji.so" or "libaji_trt.so" ||
+                                                             Path.GetFileName(f).Contains("LICENSE", StringComparison.OrdinalIgnoreCase)))
+        {
+            File.Copy(f, Path.Combine(inferencePath, Path.GetFileName(f)), true);
+        }
+        return;
+    }
     if (!string.IsNullOrEmpty(localDir))
     {
         Console.WriteLine($"Using local aji files: {localDir}");
@@ -424,6 +582,11 @@ void InstallVcRuntime()
 // The upscaling backend executable.
 async Task InstallBackendCli()
 {
+    if (!plat.IsWindows)
+    {
+        await InstallBackendCliLinux();
+        return;
+    }
     const string exe = "mangajanai_upscale.exe";
     var local = Environment.GetEnvironmentVariable("MANGAJANAI_CLI_LOCAL");
     string? archive = null;
@@ -464,6 +627,69 @@ async Task InstallBackendCli()
     });
 }
 
+// Linux: the CLI's own bundle; its `mangajanai` (or a local mangajanai_upscale) becomes
+// inference/mangajanai_upscale.
+async Task InstallBackendCliLinux()
+{
+    const string exe = "mangajanai_upscale";
+    var dst = Path.Combine(inferencePath, exe);
+    var local = Environment.GetEnvironmentVariable("MANGAJANAI_CLI_LOCAL");
+    if (!string.IsNullOrEmpty(local) && File.Exists(local) && !local.EndsWith(".tar.zst", StringComparison.Ordinal))
+    {
+        Console.WriteLine($"Using local backend: {local}");
+        File.Copy(local, dst, true);
+        MakeExecutable(dst);
+        return;
+    }
+    string dir;
+    if (!string.IsNullOrEmpty(local) && Directory.Exists(local))
+    {
+        Console.WriteLine($"Using local backend: {local}");
+        dir = local;
+    }
+    else
+    {
+        string archive;
+        if (!string.IsNullOrEmpty(local))
+        {
+            Console.WriteLine($"Using local backend: {local}");
+            archive = local;
+        }
+        else
+        {
+            Console.WriteLine($"Downloading {CliAssetLinux} {CliVersion}...");
+            archive = Path.Combine(workDirectory, CliAssetLinux);
+            await DownloadFileAsync($"https://github.com/{CliRepo}/releases/download/{CliVersion}/{CliAssetLinux}",
+                archive, p => Console.WriteLine($"Downloading {CliAssetLinux} ({p}%)..."));
+            VerifySha256(archive, CliSha256Linux);
+        }
+        dir = Path.Combine(workDirectory, "cli");
+        await ExtractTarZst(archive, dir);
+    }
+    var src = new[] { exe, "mangajanai" }.Select(n => Path.Combine(dir, n)).FirstOrDefault(File.Exists)
+        ?? throw new InvalidOperationException($"no mangajanai_upscale or mangajanai in {dir}");
+    File.Copy(src, dst, true);
+    MakeExecutable(dst);
+    foreach (var license in Directory.GetFiles(dir).Where(f => Path.GetFileName(f).Contains("LICENSE", StringComparison.OrdinalIgnoreCase)))
+    {
+        File.Copy(license, Path.Combine(inferencePath, $"mangajanai_upscale_{Path.GetFileName(license)}"), true);
+    }
+}
+
+// A .tar.zst, unpacked with the bundled 7zz (zstd -> tar) and .NET's tar reader, so the build needs no
+// zstd program.
+async Task ExtractTarZst(string archive, string outDir)
+{
+    var tmp = Path.Combine(workDirectory, Path.GetFileName(archive) + "-unzst");
+    if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
+    Directory.CreateDirectory(tmp);
+    await RunProcess(Path.Combine(installDirectory, plat.ArchiveTool), $"x \"{archive}\" -o\"{tmp}\" -y");
+    var tar = Directory.GetFiles(tmp, "*.tar").Single();
+    Directory.CreateDirectory(outDir);
+    TarFile.ExtractToDirectory(tar, outDir, overwriteFiles: true);
+    Directory.Delete(tmp, true);
+}
+
 // The default ONNX models, into models/ (split into the models-* component packs under --packs).
 async Task InstallModels()
 {
@@ -497,8 +723,16 @@ async Task InstallModels()
     foreach (var archive in archives)
     {
         Console.WriteLine($"Extracting {Path.GetFileName(archive)}...");
-        using ArchiveFile archiveFile = new(archive);
-        archiveFile.Extract(modelsPath);
+        // SevenZipExtractor wraps the Windows 7z.dll; on Linux the bundled 7zz console unpacks.
+        if (plat.IsWindows)
+        {
+            using ArchiveFile archiveFile = new(archive);
+            archiveFile.Extract(modelsPath);
+        }
+        else
+        {
+            await RunProcess(Path.Combine(installDirectory, plat.ArchiveTool), $"x \"{archive}\" -o\"{modelsPath}\" -y");
+        }
     }
 
     // The naming rule, checked: every model is <checkpoint>_<fp16|bf16|fp32>, belongs to a pack, and
@@ -530,6 +764,25 @@ async Task InstallModels()
 // The TensorRT SLA requires this attribution when redistributing the runtime.
 void WriteThirdPartyNotices()
 {
+    if (!plat.IsWindows)
+    {
+        File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"),
+            "Third-party components in this directory\n" +
+            "========================================\n\n" +
+            "NVIDIA TensorRT runtime (libnvinfer.so.11, libnvinfer_plugin.so.11, libnvonnxparser.so.11,\n" +
+            "libnvinfer_builder_resource_*.so, trtexec) and NVIDIA CUDA runtime (libcudart.so.13),\n" +
+            "redistributed under the NVIDIA TensorRT Software License Agreement and\n" +
+            "CUDA Toolkit EULA:\n\n" +
+            "    This software contains source code provided by NVIDIA Corporation.\n\n" +
+            "These files are obtained from NVIDIA's TensorRT and CUDA Linux packages,\n" +
+            "redistributed under the same terms. NVIDIA's own acknowledgements\n" +
+            "accompany them as TensorRT_Acknowledgements.txt.\n\n" +
+            "libaji.so / libaji_trt.so:\n" +
+            "https://github.com/the-database/animejanai-inference\n\n" +
+            "mangajanai_upscale (MangaJaNaiCLI, built on yosh-image):\n" +
+            "https://github.com/the-database/MangaJaNaiCLI\n");
+        return;
+    }
     var notice =
         "Third-party components in this directory\n" +
         "========================================\n\n" +
@@ -578,16 +831,16 @@ void WriteVersionAndManifest()
     var manifest = new
     {
         package_version = version,
-        app_executable = $"{AppName}.exe",
-        archive_tool = "7za.exe",
-        platform = "win-x64",
+        app_executable = plat.Exe(AppName),
+        archive_tool = plat.ArchiveTool,
+        platform = plat.Rid,
         // The versions that govern each component pack's content; bumping one makes the updater
         // reinstall that pack.
         deps = new
         {
             aji = AjiVersion,            // the trt-rtx pack's: aji_trtrtx.dll must match aji.dll
             inference_runtime = $"trt-{TrtVersion}",
-            ort_dml = $"{OrtDmlVersion}+{DirectMLVersion}",
+            ort_dml = plat.IsWindows ? $"{OrtDmlVersion}+{DirectMLVersion}" : null,
             backend = CliVersion,
             // a pack's content changes only when its archive does
             models_mangajanai = ModelDep("models-mangajanai"),
@@ -608,6 +861,20 @@ void WriteVersionAndManifest()
 // The full package the updater downloads: the install tree, rooted at its versioned folder name.
 void WriteFullPackage()
 {
+    if (!plat.IsWindows)
+    {
+        // A tarball keeps the executables' modes, and .NET reads it back without a zstd program. Users
+        // download it too (install.sh is inside).
+        var tarball = Path.Combine(outDirectory, $"{ReleaseName}-v{version}-{plat.Rid}.tar.gz");
+        Console.WriteLine($"Writing {Path.GetFileName(tarball)}...");
+        using (var file = File.Create(tarball))
+        using (var gzip = new GZipStream(file, CompressionLevel.Optimal))
+        {
+            TarFile.CreateFromDirectory(installDirectory, gzip, includeBaseDirectory: true);
+        }
+        Console.WriteLine($"  {new FileInfo(tarball).Length / 1048576} MB");
+        return;
+    }
     var zip = Path.Combine(outDirectory, $"{ReleaseName}-full-package-{version}.zip");
     if (File.Exists(zip)) File.Delete(zip);
     Console.WriteLine($"Writing {Path.GetFileName(zip)}...");
@@ -682,7 +949,7 @@ async Task<List<string>> EmitComponentPacks()
     var packsDir = Path.Combine(outDirectory, $"packs-v{version}");
     if (Directory.Exists(packsDir)) Directory.Delete(packsDir, true);
     Directory.CreateDirectory(packsDir);
-    var sevenZ = Path.Combine(installDirectory, "7za.exe");
+    var sevenZ = Path.Combine(installDirectory, plat.ArchiveTool);
 
     string[] Rel(IEnumerable<string> paths) => paths.Select(f => Path.GetRelativePath(installDirectory, f)).ToArray();
     string[] ModelFiles(string pack) => Directory.Exists(modelsPath)
@@ -697,8 +964,10 @@ async Task<List<string>> EmitComponentPacks()
         {
             var n = Path.GetFileName(f);
             bool builderResource = n.Contains("builder_resource");
-            bool runtime = n.StartsWith("nvinfer") || n.StartsWith("nvonnxparser") ||
-                           n.StartsWith("cudart64_") || n == "trtexec.exe" ||
+            bool runtime = n.StartsWith("nvinfer") || n.StartsWith("libnvinfer") ||
+                           n.StartsWith("nvonnxparser") || n.StartsWith("libnvonnxparser") ||
+                           n.StartsWith("cudart64_") || n.StartsWith("libcudart") ||
+                           n == "trtexec.exe" || n == "trtexec" ||
                            n is "CUDA_LICENSE.txt" or "TensorRT_Acknowledgements.txt";
             return runtime && !builderResource;
         }))),
@@ -709,7 +978,7 @@ async Task<List<string>> EmitComponentPacks()
     };
     foreach (var f in Directory.GetFiles(inferencePath, "*builder_resource_*"))
     {
-        // nvinfer_builder_resource_sm120_11.dll -> trt-sm120
+        // nvinfer_builder_resource_sm120_11.dll / libnvinfer_builder_resource_sm120.so.11.4.0 -> trt-sm120
         var m = System.Text.RegularExpressions.Regex.Match(Path.GetFileName(f), @"builder_resource_([a-z0-9]+)[._]");
         if (m.Success)
         {
@@ -730,7 +999,7 @@ async Task<List<string>> EmitComponentPacks()
             Console.WriteLine($"  component-{name}: nothing to pack in this tree, skipped");
             continue;
         }
-        var archive = Path.Combine(packsDir, $"component-{name}.7z");
+        var archive = Path.Combine(packsDir, $"component-{name}{plat.PackSuffix}.7z");
         var fileArgs = string.Join(' ', files.Select(f => $"\"{f}\""));
         var psi = new ProcessStartInfo
         {
@@ -748,7 +1017,7 @@ async Task<List<string>> EmitComponentPacks()
             var stdout = proc.StandardOutput.ReadToEndAsync();
             var stderr = proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
-            if (proc.ExitCode != 0) throw new InvalidOperationException($"7za failed for pack {name}: {await stderr}");
+            if (proc.ExitCode != 0) throw new InvalidOperationException($"{plat.ArchiveTool} failed for pack {name}: {await stderr}");
             await stdout;
         }
 
@@ -767,9 +1036,9 @@ async Task<List<string>> EmitComponentPacks()
             files = normalized,
         });
         packedFiles.AddRange(normalized);
-        Console.WriteLine($"  component-{name}.7z ({new FileInfo(archive).Length / 1048576} MB, {files.Length} files)");
+        Console.WriteLine($"  {Path.GetFileName(archive)} ({new FileInfo(archive).Length / 1048576} MB, {files.Length} files)");
     }
-    File.WriteAllText(Path.Combine(packsDir, "packs.json"),
+    File.WriteAllText(Path.Combine(packsDir, $"packs{plat.PackSuffix}.json"),
         JsonSerializer.Serialize(new { package_version = version, packs = index },
             new JsonSerializerOptions { WriteIndented = true }));
     Console.WriteLine($"Packs written to {packsDir}");
@@ -781,7 +1050,7 @@ if (Directory.Exists(workDirectory)) Directory.Delete(workDirectory, true);
 Directory.CreateDirectory(installDirectory);
 Directory.CreateDirectory(workDirectory);
 
-// The published app (self-contained win-x64) forms the install root.
+// The published app (self-contained for the target RID) forms the install root.
 var appDir = ArgValue("--app-dir") ?? throw new ArgumentException("--app-dir <published app> is required.");
 Console.WriteLine($"Copying {AppName} from {appDir}...");
 CopyDirectory(Path.GetFullPath(appDir), installDirectory);
@@ -791,14 +1060,23 @@ foreach (var pdb in Directory.GetFiles(installDirectory, "*.pdb", SearchOption.A
 await InstallSevenZip();
 await InstallInferenceRuntime();
 await InstallAji();
-await InstallOrtDml();
-InstallVcRuntime();
+if (plat.IsWindows)
+{
+    await InstallOrtDml();
+    InstallVcRuntime();
+}
 await InstallBackendCli();
 await InstallModels();
 
 // The custom updater ships at the install root next to the app.
-var updater = ArgValue("--updater") ?? throw new ArgumentException("--updater <MangaJaNaiUpdater.exe> is required.");
-File.Copy(updater, Path.Combine(installDirectory, "MangaJaNaiUpdater.exe"), true);
+var updater = ArgValue("--updater") ?? throw new ArgumentException($"--updater <{plat.Exe("MangaJaNaiUpdater")}> is required.");
+var updaterPath = Path.Combine(installDirectory, plat.Exe("MangaJaNaiUpdater"));
+File.Copy(updater, updaterPath, true);
+if (!plat.IsWindows)
+{
+    MakeExecutable(updaterPath);
+    MakeExecutable(Path.Combine(installDirectory, AppName));
+}
 
 WriteThirdPartyNotices();
 
@@ -811,3 +1089,56 @@ WriteVersionAndManifest();
 WriteFullPackage();
 Directory.Delete(workDirectory, true);
 Console.WriteLine($"Built {installDirectory}");
+
+// Copy a file, following a symlink (chain) to the file it names.
+static void CopyResolved(string src, string dst)
+{
+    var target = new FileInfo(src).ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? src;
+    File.Copy(target, dst, true);
+}
+
+static void MakeExecutable(string path)
+{
+    if (!OperatingSystem.IsWindows())
+    {
+        File.SetUnixFileMode(path, File.GetUnixFileMode(path) |
+            UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
+    }
+}
+
+static async Task RunProcess(string fileName, string arguments)
+{
+    using var process = Process.Start(new ProcessStartInfo
+    {
+        FileName = fileName,
+        Arguments = arguments,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true,
+    })!;
+    // drain both pipes: a full one would stall the child
+    var stdout = process.StandardOutput.ReadToEndAsync();
+    var stderr = process.StandardError.ReadToEndAsync();
+    await process.WaitForExitAsync();
+    await stdout;
+    if (process.ExitCode != 0)
+    {
+        throw new InvalidOperationException($"{fileName} failed (exit {process.ExitCode}): {await stderr}");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Platform descriptor: every platform-varying name in one place.
+// ---------------------------------------------------------------------------
+record Platform(bool IsWindows, string Rid, string ArchiveTool)
+{
+    // "MangaJaNaiUpdater" -> "MangaJaNaiUpdater.exe" / "MangaJaNaiUpdater"
+    public string Exe(string stem) => IsWindows ? stem + ".exe" : stem;
+    // Release-asset suffix so Windows and Linux assets share one release (Windows keeps its unsuffixed
+    // names, which installed updaters look for).
+    public string PackSuffix => IsWindows ? "" : "-" + Rid;
+
+    public static readonly Platform Win = new(IsWindows: true, Rid: "win-x64", ArchiveTool: "7za.exe");
+    public static readonly Platform Linux = new(IsWindows: false, Rid: "linux-x64", ArchiveTool: "7zz");
+}
