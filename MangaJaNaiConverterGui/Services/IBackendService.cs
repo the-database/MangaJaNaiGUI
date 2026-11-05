@@ -2,7 +2,7 @@ using Avalonia.Collections;
 
 namespace MangaJaNaiConverterGui.Services
 {
-    // Where the upscaling backend (mangajanai_upscale.exe + libaji) and the app's data live.
+    // Where the upscaling backend (mangajanai_upscale + libaji) and the app's data live.
     public interface IBackendService
     {
         string AppStateFolder { get; }
@@ -10,7 +10,7 @@ namespace MangaJaNaiConverterGui.Services
         string AppStatePath { get; }
         string LogsDirectory { get; }
 
-        // The inference folder: libaji, its runtimes and mangajanai_upscale.exe.
+        // The inference folder: libaji, its runtimes and mangajanai_upscale.
         string InferenceDirectory { get; }
         string BackendExePath { get; }
         bool IsBackendInstalled { get; }
