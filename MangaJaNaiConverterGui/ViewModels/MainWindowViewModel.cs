@@ -1281,9 +1281,11 @@ namespace MangaJaNaiConverterGui.ViewModels
                     "--aji-dir", _backendService.InferenceDirectory,
                     "--backend", CliBackend,
                     "--cache-dir", _backendService.EngineCacheDirectory,
-                    "--models-dir", _backendService.UserModelsDirectory,
-                    "--models-dir", _backendService.BundledModelsDirectory,
                 };
+                foreach (var dir in _backendService.ModelsDirectories)
+                {
+                    args.AddRange(["--models-dir", dir]);
+                }
                 if (_deviceIds.Length > 0 && !string.IsNullOrEmpty(SelectedDeviceId))
                 {
                     args.AddRange(["--device", SelectedDeviceId]);

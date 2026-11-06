@@ -16,7 +16,7 @@ on:
       source:
         description: Which upstream to re-pin
         type: choice
-        options: [libaji, mangajanai-cli]
+        options: [libaji, mangajanai-cli, runtime-packs, aji-runtime]
       tag:
         description: 'Release tag, e.g. v0.22.2 (libaji) or v0.3.1 (MangaJaNaiCLI)'
         required: true

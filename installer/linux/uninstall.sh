@@ -1,7 +1,14 @@
 #!/bin/sh
-# Removes the desktop integration created by install.sh. The folder itself is left in place - delete
-# it to remove the rest.
+# Removes the desktop integration created by install.sh, and drops this install from the shared pack
+# store (~/.local/share/the-database/aji): the TensorRT runtime and models no other installed app uses
+# go with it. The folder itself is left in place - delete it to remove the rest.
 set -eu
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [ -x "$HERE/aji-runtime" ]; then
+    "$HERE/aji-runtime" unref --app-id mangajanai-gui || true
+    rm -f "$HERE/inference/aji-runtime.json"
+fi
 
 BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"
 APPS="${XDG_DATA_HOME:-$HOME/.local/share}/applications"

@@ -27,9 +27,21 @@
 // Installed state lives in components.json at the install root. Packs always come from the installed
 // version's release, so they match its builds.
 //
+// Shared pack store: when manifest.json pins a shared runtime release ("runtime": its index URL and
+// SHA-256) and aji-runtime(.exe) ships beside this updater, the same packs (TensorRT, the builder
+// packs, TensorRT-RTX's runtime, the models) live in the per-user pack store instead
+// (%LOCALAPPDATA%\the-database\aji, shared with the other apps; the-database/aji-runtime), as app
+// "mangajanai-gui". Each install, removal and --auto is one `aji-runtime ensure` with the full set
+// this install uses, which also writes inference/aji-runtime.json (libaji and the app read it). Files
+// an older version installed into the install folder are taken over by the store (matched by
+// SHA-256) and then deleted here. The pack names, --components --json and the exit codes stay the
+// same, so the app and the installer don't change. The uninstaller runs `aji-runtime unref`.
+//
 // Dev overrides: MANGAJANAI_UPDATE_URL=<url> reads the latest release from another GitHub-style
 // releases/latest endpoint (a fork's, or a local test server's); MANGAJANAI_PACKS_DIR=<dir> reads
-// packs.json + component-*.7z from a local directory.
+// packs.json + component-*.7z from a local directory; MANGAJANAI_RUNTIME_MIRROR=<dir> installs the
+// store packs from a folder holding the runtime release's packs-<platform>.json and archives;
+// AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points the store at a test folder.
 
 using System.Diagnostics;
 using System.Formats.Tar;
@@ -65,6 +77,15 @@ if (!OperatingSystem.IsWindows())
     NativeLibrary.SetDllImportResolver(typeof(Nvml).Assembly, (name, asm, search) =>
         name == "nvml.dll" ? NativeLibrary.Load("libnvidia-ml.so.1", asm, search) : IntPtr.Zero);
 }
+
+// The shared pack store: the runtime release this package pins, and the tool that manages the store.
+string ajiRuntime = Path.Combine(installDir, OperatingSystem.IsWindows() ? "aji-runtime.exe" : "aji-runtime");
+string? runtimeIndexUrl = ReadManifestNested(localManifest, "runtime", "index_url");
+string? runtimeIndexSha = ReadManifestNested(localManifest, "runtime", "index_sha256");
+string? runtimeMirror = Environment.GetEnvironmentVariable("MANGAJANAI_RUNTIME_MIRROR") is { Length: > 0 } mirror ? mirror : null;
+bool storeMode = (runtimeIndexUrl is not null && runtimeIndexSha is not null || runtimeMirror is not null) && File.Exists(ajiRuntime);
+const string StoreAppId = "mangajanai-gui";
+string inferenceDir = Path.Combine(installDir, "inference");
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
@@ -567,6 +588,10 @@ static bool IsNewer(string remote, string local)
 
 async Task<PackIndex> GetPackIndexAsync()
 {
+    if (storeMode)
+    {
+        return await GetStoreIndexAsync();
+    }
     string? local = Environment.GetEnvironmentVariable("MANGAJANAI_PACKS_DIR");
     string json;
     List<Asset> assets;
@@ -654,8 +679,18 @@ bool PackContentMatches(Pack pack)
     return true;
 }
 
-// Installed state: components.json, else inferred from what's on disk.
+// Installed state: components.json, else inferred from what's on disk. In store mode: the packs the
+// store holds for this install.
 Dictionary<string, string> ReadInstalledComponents(PackIndex index)
+{
+    if (storeMode)
+    {
+        return ReadStoreInstalled();
+    }
+    return ReadPrivateComponents(index);
+}
+
+Dictionary<string, string> ReadPrivateComponents(PackIndex index)
 {
     string path = Path.Combine(installDir, "components.json");
     var installed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -945,6 +980,18 @@ async Task<int> InstallComponentAsync(string name)
         return 2;
     }
     var index = await GetPackIndexAsync();
+    if (storeMode)
+    {
+        var p = index.Packs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (p is null)
+        {
+            Console.WriteLine($"Unknown pack '{name}'. Available: {string.Join(", ", index.Packs.Select(p => p.Name))}");
+            return 2;
+        }
+        var want = StoreWanted(index);
+        want.Add(p.Name);
+        return StoreEnsure(index, want);
+    }
     var pack = index.Packs.FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     if (pack is null)
     {
@@ -1030,6 +1077,17 @@ int RemoveComponent(string name)
         Console.WriteLine($"Unknown pack '{name}'. Available: {string.Join(", ", index.Packs.Select(p => p.Name))}");
         return 2;
     }
+    if (storeMode)
+    {
+        var want = StoreWanted(index);
+        want.Remove(pack.Name);
+        int rc = want.Count == 0 ? StoreUnref() : StoreEnsure(index, want);
+        if (rc == 0)
+        {
+            Console.WriteLine($"{pack.Name} removed. Engine caches and models you added are untouched.");
+        }
+        return rc;
+    }
     // The published list plus whatever an earlier version of the pack recorded.
     var recorded = ReadPackFiles().GetValueOrDefault(pack.Name) ?? [];
     int gone = DeleteInstallFiles(pack.Files.Concat(recorded).Distinct(StringComparer.OrdinalIgnoreCase));
@@ -1045,6 +1103,21 @@ async Task<int> AutoComponentsAsync()
     var index = await GetPackIndexAsync();
     var (hasNvidia, sm, gpu) = DetectGpu();
     var rec = RecommendedPacks(index, hasNvidia, sm);
+    if (storeMode)
+    {
+        var have = ReadStoreInstalled();
+        var want = StoreWanted(index);
+        want.UnionWith(rec);
+        bool complete = want.All(have.ContainsKey) && have.Keys.All(want.Contains) &&
+                        File.Exists(Path.Combine(inferenceDir, "aji-runtime.json"));
+        int rc = complete && !PrivatePackFilesLeft(index) ? 0 : StoreEnsure(index, want);
+        DeleteRetiredFiles(index);
+        if (rc == 0 && complete)
+        {
+            Console.WriteLine("Everything the detected hardware needs is already installed.");
+        }
+        return rc;
+    }
     var installed = ReadInstalledComponents(index);
     // "Needs installing" is not just "absent": a recorded pack is stale when the dep that governs it
     // moved (a TensorRT or model bump) or its files on disk are not this pack's content.
@@ -1094,6 +1167,277 @@ async Task<int> RecommendAsync()
     }
     Console.WriteLine($"PACKS={packs}");
     return 0;
+}
+
+// ---- shared pack store ------------------------------------------------------------------------
+
+// The GUI's pack names are the store's, except TensorRT-RTX: "trt-rtx" was aji_trtrtx.dll and its
+// runtime, and now aji_trtrtx.dll ships in the core and the runtime is the store's "trtrtx-runtime".
+static string StoreName(string pack) => pack == "trt-rtx" ? "trtrtx-runtime" : pack;
+static string GuiName(string pack) => pack == "trtrtx-runtime" ? "trt-rtx" : pack;
+
+static string? ReadManifestNested(string manifestPath, string key, string field)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(manifestPath));
+        if (doc.RootElement.TryGetProperty(key, out var o) && o.ValueKind == JsonValueKind.Object &&
+            o.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String && v.GetString() is { Length: > 0 } s)
+        {
+            return s;
+        }
+    }
+    catch { /* missing/unreadable manifest */ }
+    return null;
+}
+
+static string Sha256Hex(byte[] data) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(data)).ToLowerInvariant();
+
+string StoreIndexPath() => Path.Combine(runtimeMirror!, $"packs-{(isWinRid ? "windows" : "linux")}-x64.json");
+
+// The runtime release's index, checked against the package's pin, as the component list: the packs
+// of the kinds this app uses, under the GUI's names. Files are the store's paths inside the pack.
+async Task<PackIndex> GetStoreIndexAsync()
+{
+    string json = await StoreIndexJsonAsync();
+    var packs = new List<Pack>();
+    using var doc = JsonDocument.Parse(json);
+    foreach (var e in doc.RootElement.GetProperty("packs").EnumerateArray())
+    {
+        string kind = e.TryGetProperty("kind", out var k) ? k.GetString() ?? "" : "";
+        if (kind is not ("trt" or "trt-builder" or "trtrtx" or "models"))
+        {
+            continue; // dml-runtime ("private") ships in this app's core
+        }
+        var files = e.GetProperty("files").EnumerateArray()
+            .Select(f => f.ValueKind == JsonValueKind.Object ? f.GetProperty("path").GetString() ?? "" : f.GetString() ?? "")
+            .Where(f => f.Length > 0).ToList();
+        packs.Add(new Pack(
+            GuiName(e.GetProperty("name").GetString() ?? ""),
+            e.GetProperty("asset").GetString() ?? "",
+            e.GetProperty("url").GetString(),
+            e.GetProperty("bytes").GetInt64(),
+            files,
+            null,
+            e.TryGetProperty("installed_bytes", out var ib) ? ib.GetInt64() : 0));
+    }
+    return new PackIndex(ReadLocalVersion(), packs);
+}
+
+async Task<string> StoreIndexJsonAsync()
+{
+    if (runtimeMirror is not null)
+    {
+        return File.ReadAllText(StoreIndexPath());
+    }
+    using var client = NewClient();
+    byte[] data = await client.GetByteArrayAsync(runtimeIndexUrl);
+    if (Sha256Hex(data) != runtimeIndexSha!.ToLowerInvariant())
+    {
+        throw new InvalidOperationException("The runtime packs' index doesn't match the SHA-256 this version pins.");
+    }
+    return System.Text.Encoding.UTF8.GetString(data);
+}
+
+// The packs the store holds for this install (aji-runtime show), under the GUI's names.
+Dictionary<string, string> ReadStoreInstalled()
+{
+    var installed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
+    if (rc != 0)
+    {
+        return installed;
+    }
+    try
+    {
+        using var doc = JsonDocument.Parse(stdout);
+        foreach (var p in doc.RootElement.GetProperty("packs").EnumerateArray())
+        {
+            if (p.GetProperty("installed").GetBoolean())
+            {
+                installed[GuiName(p.GetProperty("name").GetString() ?? "")] = p.GetProperty("version").GetString() ?? "";
+            }
+        }
+    }
+    catch { /* unreadable: nothing installed */ }
+    return installed;
+}
+
+// The store folder of each pack this install has, under the GUI's names.
+Dictionary<string, string> ReadStoreDirs()
+{
+    var dirs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
+    if (rc != 0)
+    {
+        return dirs;
+    }
+    try
+    {
+        using var doc = JsonDocument.Parse(stdout);
+        foreach (var p in doc.RootElement.GetProperty("packs").EnumerateArray())
+        {
+            if (p.GetProperty("installed").GetBoolean())
+            {
+                dirs[GuiName(p.GetProperty("name").GetString() ?? "")] = p.GetProperty("dir").GetString() ?? "";
+            }
+        }
+    }
+    catch { /* unreadable */ }
+    return dirs;
+}
+
+// What this install uses now: the store's packs, plus the ones an older version installed into the
+// install folder (components.json), which the next ensure moves to the store.
+HashSet<string> StoreWanted(PackIndex index)
+{
+    var want = new HashSet<string>(ReadStoreInstalled().Keys, StringComparer.OrdinalIgnoreCase);
+    foreach (var name in ReadPrivateComponents(index).Keys)
+    {
+        if (index.Packs.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            want.Add(name);
+        }
+    }
+    return want;
+}
+
+// Installs exactly `want` for this install (aji-runtime writes the ref and inference/aji-runtime.json,
+// then frees what no app uses), taking matching files from the install folder first, then removes
+// this folder's private copies.
+int StoreEnsure(PackIndex index, HashSet<string> want)
+{
+    string indexArg = runtimeMirror is not null ? StoreIndexPath() : runtimeIndexUrl!;
+    string sha = runtimeMirror is not null ? Sha256Hex(File.ReadAllBytes(indexArg)) : runtimeIndexSha!;
+    // Install order as the index lists them.
+    var ordered = index.Packs.Where(p => want.Contains(p.Name)).Select(p => StoreName(p.Name)).ToList();
+    var args = new List<string>
+    {
+        "ensure", "--app-id", StoreAppId, "--app-path", Path.Combine(installDir, appExe),
+        "--app-version", ReadLocalVersion(), "--index", indexArg, "--index-sha256", sha,
+        "--want", string.Join(",", ordered), "--gpus", "none", "--aji-dir", inferenceDir,
+        "--adopt-from", inferenceDir, "--adopt-from", installDir,
+    };
+    if (runtimeMirror is not null)
+    {
+        args.AddRange(["--mirror", runtimeMirror]);
+    }
+    var (rc, _) = RunAjiRuntime(args, capture: false);
+    if (rc != 0)
+    {
+        return rc;
+    }
+    RemovePrivatePackFiles(index);
+    return 0;
+}
+
+int StoreUnref()
+{
+    var (rc, _) = RunAjiRuntime(["unref", "--app-id", StoreAppId], capture: false);
+    TryDelete(() => File.Delete(Path.Combine(inferenceDir, "aji-runtime.json")));
+    return rc;
+}
+
+// libaji's own files ship in the core and always stay (aji_trtrtx.dll was in the trt-rtx pack).
+static bool IsLibaji(string rel)
+{
+    string n = Path.GetFileName(rel).ToLowerInvariant();
+    return (n.StartsWith("aji") && n.EndsWith(".dll")) || n.StartsWith("libaji");
+}
+
+// Where an older version put a pack's file in the install folder.
+static string PrivatePath(Pack pack, string f) =>
+    pack.Name.StartsWith("models-", StringComparison.Ordinal) ? $"models/{f}" : $"inference/{f}";
+
+// Whether files an older version installed for a pack are still in the install folder.
+bool PrivatePackFilesLeft(PackIndex index) =>
+    ReadPrivateComponents(index).Count > 0 ||
+    index.Packs.Any(p => p.Files.Any(f => !IsLibaji(f) && File.Exists(Path.Combine(installDir, PrivatePath(p, f)))));
+
+// Once the store has them: delete what an older version installed for the store's packs (the files
+// components.json recorded, and files identical to the store's), then forget them.
+void RemovePrivatePackFiles(PackIndex index)
+{
+    var recorded = ReadPackFiles();
+    var have = ReadStoreInstalled();
+    var dirs = ReadStoreDirs();
+    // Recorded files of packs the store now has (a pack this install no longer uses has none left).
+    int gone = DeleteInstallFiles(recorded.Where(kv => have.ContainsKey(kv.Key) || !index.Packs.Any(p => p.Name == kv.Key))
+        .SelectMany(kv => kv.Value).Where(f => !IsLibaji(f)));
+    foreach (var pack in index.Packs.Where(p => dirs.ContainsKey(p.Name)))
+    {
+        foreach (var f in pack.Files)
+        {
+            string rel = PrivatePath(pack, f);
+            if (!IsLibaji(rel) && File.Exists(Path.Combine(installDir, rel)) && SameFile(Path.Combine(dirs[pack.Name], f), Path.Combine(installDir, rel)))
+            {
+                gone += DeleteInstallFiles([rel]);
+            }
+        }
+    }
+    TryDelete(() => File.Delete(Path.Combine(installDir, "components.json")));
+    if (gone > 0)
+    {
+        Console.WriteLine($"Removed {gone} file(s) from the install folder that the shared pack store now holds.");
+    }
+    string models = Path.Combine(installDir, "models");
+    TryDelete(() => { if (Directory.Exists(models) && !Directory.EnumerateFileSystemEntries(models).Any()) Directory.Delete(models); });
+}
+
+static bool SameFile(string a, string b)
+{
+    try
+    {
+        var fa = new FileInfo(a);
+        var fb = new FileInfo(b);
+        if (!fa.Exists || !fb.Exists || fa.Length != fb.Length)
+        {
+            return false;
+        }
+        using var sa = File.OpenRead(a);
+        using var sb = File.OpenRead(b);
+        return System.Security.Cryptography.SHA256.HashData(sa).AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(sb));
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+// Runs aji-runtime. Its human output (stderr) is passed on line by line, as the app shows this
+// updater's output; with `capture`, stdout is returned instead of shown (and only errors are shown).
+(int, string) RunAjiRuntime(IEnumerable<string> arguments, bool capture)
+{
+    var psi = new ProcessStartInfo
+    {
+        FileName = ajiRuntime,
+        UseShellExecute = false,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        CreateNoWindow = true,
+        WorkingDirectory = installDir,
+    };
+    foreach (var a in arguments)
+    {
+        psi.ArgumentList.Add(a);
+    }
+    using var p = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start aji-runtime");
+    var stdout = p.StandardOutput.ReadToEndAsync();
+    string? line;
+    while ((line = p.StandardError.ReadLine()) != null)
+    {
+        if (!capture || line.StartsWith("error:", StringComparison.Ordinal))
+        {
+            Console.WriteLine(line.TrimEnd());
+        }
+    }
+    p.WaitForExit();
+    string output = stdout.Result;
+    if (!capture && output.Length > 0)
+    {
+        Console.Write(output);
+    }
+    return (p.ExitCode, output);
 }
 
 // Component packs are 7z archives rooted at the install dir; the bundled 7-Zip console extracts them.
