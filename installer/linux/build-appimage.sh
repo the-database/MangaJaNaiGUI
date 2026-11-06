@@ -1,7 +1,8 @@
 #!/bin/bash
-# Builds the MangaJaNai GUI AppImage from an assembled linux-x64 install tree with the TensorRT runtime
-# and the models packs extracted into it (an AppImage can't install component packs into its read-only
-# squashfs; AppRun fetches the GPU-matched builder kernels into $XDG_DATA_HOME/MangaJaNaiGUI instead).
+# Builds the MangaJaNai GUI AppImage from an assembled linux-x64 install tree (the core). An AppImage
+# can't install component packs into its read-only squashfs: on first launch AppRun has the image's
+# aji-runtime install the TensorRT runtime, this GPU's builder pack and the models into the shared
+# pack store instead.
 #
 # Usage: build-appimage.sh <tree-dir> <version> [out-dir]
 #

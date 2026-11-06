@@ -38,6 +38,12 @@
 //   VC_CRT_DIR              -> a Microsoft.VC14x.CRT directory (default: found through vswhere)
 //   AJI_RUNTIME_LOCAL       -> a local aji-runtime(.exe), the shared pack store's tool (default: the
 //                              pinned the-database/aji-runtime release)
+//
+// --store (what releases build): the core alone. The TensorRT runtime, the builder resources,
+// TensorRT-RTX's runtime and the models come from the shared runtime packs at install time (the
+// updater's store mode, the AppImage's AppRun), so they aren't downloaded, assembled or packed here;
+// aji_trtrtx.dll comes from libaji's small aji-trtrtx-backend-windows-x64.zip. Without --store (and
+// without --packs) everything stays in the tree, for local runs.
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using SevenZipExtractor;
@@ -84,14 +90,16 @@ var trtDebSha256 = new Dictionary<string, string>
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
 // Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
-const string AjiVersion        = "v0.23.0";
-const string AjiSha256Win      = "9ca467e3572a03e11ac8fdc01c004c735efaa7f776d5fb996719e038af9c366d";
+const string AjiVersion        = "v0.23.1";
+const string AjiSha256Win      = "c433533f5310cd2443cec19bd412a9387fb1bd5e37225904c3d7fb28bfd3ba79";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). aji_trtrtx.dll stays in the core (it must match aji.dll); the
 // runtime becomes the trt-rtx pack.
-const string AjiTrtRtxSha256Win = "d974804c20afdd080ff2e1164477968f432d01cd9cd8886d23e484158ec6f179";
+const string AjiTrtRtxSha256Win = "ce5ce6bc7d0bd7e5fefaa4ad2e952bd9ea3b4c56490aa66db6c03c5f188eb3e3";
+// aji_trtrtx.dll alone (store builds): the same release's aji-trtrtx-backend-windows-x64.zip.
+const string AjiTrtRtxBackendSha256Win = "e34bfcb945573e2c66f1e9048df191029472666b92780401b6e7d835e0456fd7";
 // Linux: libaji.so + libaji_trt.so (TensorRT only).
-const string AjiSha256Linux    = "98b1f81151580243676021eb180b2b005014d6c962e9e03c8d526f588f9af054";
+const string AjiSha256Linux    = "4a5912adceef4c627b7b34f35cc5d5d93b51ebd33013e630da37b8c71853e9c5";
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs, TensorRT-RTX's runtime and the default models, installed once per user into
 // the shared pack store by aji-runtime (the updater's store mode). The manifest carries the platform's
@@ -498,12 +506,16 @@ async Task InstallAji()
     }
     else
     {
-        rtxZip = await DownloadAjiAsset("aji-trtrtx-windows-x64.zip", AjiTrtRtxSha256Win);
+        rtxZip = args.Contains("--store")
+            ? await DownloadAjiAsset("aji-trtrtx-backend-windows-x64.zip", AjiTrtRtxBackendSha256Win)
+            : await DownloadAjiAsset("aji-trtrtx-windows-x64.zip", AjiTrtRtxSha256Win);
     }
+    // A store build keeps aji_trtrtx.dll only: its runtime is the store's trtrtx-runtime pack.
     ExtractZipFiltered(rtxZip, entry =>
     {
         var name = Path.GetFileName(entry);
-        return IsTrtRtxFile(name) ? Path.Combine(inferencePath, name) : null;
+        bool keep = args.Contains("--store") ? !IsTrtRtxRuntimeFile(name) && IsTrtRtxFile(name) : IsTrtRtxFile(name);
+        return keep ? Path.Combine(inferencePath, name) : null;
     });
 }
 
@@ -838,6 +850,32 @@ async Task InstallModels()
 // The TensorRT SLA requires this attribution when redistributing the runtime.
 void WriteThirdPartyNotices()
 {
+    if (args.Contains("--store"))
+    {
+        File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"),
+            "Third-party components in this directory\n" +
+            "========================================\n\n" +
+            "The NVIDIA TensorRT runtime" + (plat.IsWindows ? ", the NVIDIA TensorRT for RTX runtime" : "") +
+            " and the default models are not in this folder: they are installed into the shared pack\n" +
+            "store (aji-runtime) from the-database/animejanai-inference runtime packs, and NVIDIA's\n" +
+            "licence notices and acknowledgements ship in each pack.\n\n" +
+            (plat.IsWindows
+                ? "ONNX Runtime (onnxruntime.dll), (c) Microsoft Corporation, redistributed\n" +
+                  "under the MIT license (https://github.com/microsoft/onnxruntime/blob/main/LICENSE).\n\n" +
+                  "DirectML (DirectML.dll), (c) Microsoft Corporation, redistributed as the\n" +
+                  "DirectML Redistributable Package under the Microsoft Software License Terms\n" +
+                  "shipped alongside it as DirectML_LICENSE.txt (use on Windows and Xbox only).\n\n" +
+                  "Microsoft Visual C++ runtime (msvcp140*.dll, vcruntime140*.dll, concrt140.dll),\n" +
+                  "(c) Microsoft Corporation, redistributed under the Visual Studio redistributable terms.\n\n" +
+                  "aji.dll / aji_trt.dll / aji_dml.dll / aji_trtrtx.dll:\n"
+                : "libaji.so / libaji_trt.so:\n") +
+            "https://github.com/the-database/animejanai-inference\n\n" +
+            "aji-runtime" + (plat.IsWindows ? ".exe" : "") + " (the shared pack store's tool):\n" +
+            "https://github.com/the-database/aji-runtime\n\n" +
+            "mangajanai_upscale" + (plat.IsWindows ? ".exe" : "") + " (MangaJaNaiCLI, built on yosh-image):\n" +
+            "https://github.com/the-database/MangaJaNaiCLI\n");
+        return;
+    }
     if (!plat.IsWindows)
     {
         File.WriteAllText(Path.Combine(inferencePath, "THIRD_PARTY_NOTICES.txt"),
@@ -1141,8 +1179,17 @@ CopyDirectory(Path.GetFullPath(appDir), installDirectory);
 // Debug symbols (SkiaSharp's alone are ~100 MB) aren't useful to users.
 foreach (var pdb in Directory.GetFiles(installDirectory, "*.pdb", SearchOption.AllDirectories)) File.Delete(pdb);
 
+bool storeBuild = args.Contains("--store");
+if (storeBuild && args.Contains("--packs"))
+{
+    throw new ArgumentException("--store builds the core alone; it takes no --packs.");
+}
+
 await InstallSevenZip();
-await InstallInferenceRuntime();
+if (!storeBuild)
+{
+    await InstallInferenceRuntime();
+}
 await InstallAji();
 if (plat.IsWindows)
 {
@@ -1151,7 +1198,10 @@ if (plat.IsWindows)
 }
 await InstallBackendCli();
 await InstallAjiRuntime();
-await InstallModels();
+if (!storeBuild)
+{
+    await InstallModels();
+}
 
 // The custom updater ships at the install root next to the app.
 var updater = ArgValue("--updater") ?? throw new ArgumentException($"--updater <{plat.Exe("MangaJaNaiUpdater")}> is required.");
