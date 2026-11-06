@@ -34,8 +34,9 @@ cp -a "$TREE/." "$APPDIR/"
 # The AppImage updates by being replaced: no in-place updater, and no tarball install scripts.
 rm -f "$APPDIR/MangaJaNaiUpdater" "$APPDIR/install.sh" "$APPDIR/uninstall.sh"
 install -m755 "$HERE/AppRun" "$APPDIR/AppRun"
+# (trtexec comes from the store's TensorRT pack, not the tree)
 chmod +x "$APPDIR/MangaJaNaiConverterGui" "$APPDIR/7zz" "$APPDIR/inference/mangajanai_upscale" \
-         "$APPDIR/inference/trtexec"
+         "$APPDIR/aji-runtime"
 
 cp "$HERE/../../logo.png" "$APPDIR/mangajanai-gui.png"
 cat > "$APPDIR/mangajanai-gui.desktop" <<EOF
