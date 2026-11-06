@@ -6,6 +6,10 @@ Sources:
                   AjiTrtRtxSha256Win and AjiSha256Linux in BuildMangaJaNai/Program.cs
   mangajanai-cli  the-database/MangaJaNaiCLI release (the backend): CliVersion, CliSha256 and
                   CliSha256Linux in BuildMangaJaNai/Program.cs
+  runtime-packs   the shared runtime packs, a the-database/animejanai-inference runtime-<n> release:
+                  RuntimeTag, RuntimeIndexSha256Win and RuntimeIndexSha256Linux
+  aji-runtime     the-database/aji-runtime release (the pack store's tool): AjiRuntimeVersion,
+                  AjiRuntimeSha256Win and AjiRuntimeSha256Linux
 
 .github/workflows/bump-pins.yml runs this when an upstream release sends a repository_dispatch,
 then opens a PR; it also runs by hand. Each pinned asset is downloaded to record its SHA-256.
@@ -221,7 +225,48 @@ def bump_cli(tag, changes, allow_downgrade):
     return [f], f"Bump MangaJaNaiCLI to {tag}", notes
 
 
-SOURCES = {"libaji": bump_libaji, "mangajanai-cli": bump_cli}
+def bump_runtime(tag, changes, allow_downgrade):
+    if not re.fullmatch(r"runtime-\d+", tag):
+        raise Fail(f"{tag} isn't a runtime-<n> tag")
+    f = File(PROGRAM, changes)
+    guard_downgrade("RuntimeTag", f.get("RuntimeTag", const("RuntimeTag")), tag, allow_downgrade)
+    rel = release("the-database/animejanai-inference", tag)
+    f.set("RuntimeTag", const("RuntimeTag"), tag)
+    for name, pin in (("packs-windows-x64.json", "RuntimeIndexSha256Win"),
+                      ("packs-linux-x64.json", "RuntimeIndexSha256Linux")):
+        sha, _ = digest(asset(rel, name))
+        f.set(pin, const(pin, SHA), sha)
+    notes = (
+        f"Pins the shared runtime packs on [{tag}]({rel['html_url']}) (animejanai-inference "
+        "`runtime-packs.yml`): TensorRT, the per-GPU builder packs, TensorRT-RTX's runtime and the "
+        "default models, which the updater installs into the shared pack store. Each "
+        "`packs-<platform>.json` is checked against these SHA-256s, and it pins every pack. After the "
+        "update, `--auto` installs the new versions; the old ones go once no other app uses them."
+    )
+    return [f], f"Bump the runtime packs to {tag}", notes
+
+
+def bump_aji_runtime(tag, changes, allow_downgrade):
+    if not re.fullmatch(r"v\d+\.\d+\.\d+", tag):
+        raise Fail(f"{tag} isn't an aji-runtime release tag (vX.Y.Z)")
+    f = File(PROGRAM, changes)
+    guard_downgrade("AjiRuntimeVersion", f.get("AjiRuntimeVersion", const("AjiRuntimeVersion")), tag, allow_downgrade)
+    rel = release("the-database/aji-runtime", tag)
+    f.set("AjiRuntimeVersion", const("AjiRuntimeVersion"), tag)
+    for name, pin in (("aji-runtime-windows-x64.zip", "AjiRuntimeSha256Win"),
+                      ("aji-runtime-linux-x64.tar.gz", "AjiRuntimeSha256Linux")):
+        sha, _ = digest(asset(rel, name))
+        f.set(pin, const(pin, "[0-9a-f]{0,64}"), sha)
+    notes = (
+        f"Pins [aji-runtime {tag}]({rel['html_url']}), the shared pack store's tool that ships beside "
+        "the updater. Check its release notes for changes to the commands the updater runs (`ensure`, "
+        "`show`, `unref`, `path`)."
+    )
+    return [f], f"Bump aji-runtime to {tag}", notes
+
+
+SOURCES = {"libaji": bump_libaji, "mangajanai-cli": bump_cli, "runtime-packs": bump_runtime,
+           "aji-runtime": bump_aji_runtime}
 
 if __name__ == "__main__":
     run(SOURCES, "MangaJaNai GUI")
