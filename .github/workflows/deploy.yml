@@ -17,16 +17,19 @@ on:
 #   - MangaJaNaiGUI-Setup-<ver>.exe                       per-user setup installer (wraps the slim core)
 #   - MangaJaNaiGUI-full-package-<ver>.zip                the slim core (what MangaJaNaiUpdater downloads)
 #   - manifest.json                                       the package's version, deps and file list
-#   - component-*.7z + packs.json                         on-demand component packs: the TensorRT runtime,
+#   (no component packs: the TensorRT runtime, the builder packs, TensorRT-RTX's runtime and the models
+#   come from the shared runtime packs, animejanai-inference runtime-<n>, at install time)
+#   - (until 2.2.0) component-*.7z + packs.json           on-demand component packs: the TensorRT runtime,
 #                                                         per-GPU builder resources, the ONNX models, and
 #                                                         the opt-in TensorRT-RTX backend
 # The deploy-linux leg adds the RID-suffixed Linux assets to the same release:
 #   - MangaJaNaiGUI-v<ver>-linux-x64.tar.gz               the slim core with install.sh (the download, and
 #                                                         MangaJaNaiUpdater's full update on Linux)
-#   - MangaJaNaiGUI-x86_64-v<ver>.AppImage                the core with the TensorRT runtime and models baked
-#                                                         in; the GPU's builder kernels download on first launch
+#   - MangaJaNaiGUI-x86_64-v<ver>.AppImage                the core; the TensorRT runtime, the GPU's builder pack
+#                                                         and the models install into the shared pack store on
+#                                                         first launch
 #   - manifest-linux-x64.json
-#   - component-*-linux-x64.7z + packs-linux-x64.json     the Linux component packs (no TensorRT-RTX, no DirectML)
+#   - (until 2.2.0) component-*-linux-x64.7z + packs-linux-x64.json
 # Both legs upload hundreds of MB with one token and can trip GitHub's upload rate limit; dispatch
 # windows_only=true, wait, then linux_only=true to release them one after the other.
 # MangaJaNaiUpdater only sees published releases (releases/latest skips drafts), so installed apps
@@ -56,12 +59,11 @@ jobs:
       - name: Publish updater
         run: dotnet publish MangaJaNaiUpdater/MangaJaNaiUpdater.csproj -c Release -o updater-publish
 
-      # Assemble the core (aji, the upscaling backend, ONNX Runtime/DirectML, the VC++ runtime, plus the
-      # TensorRT runtime, TensorRT-RTX and models), carve the TensorRT runtime, builder resources,
-      # TensorRT-RTX and models into component packs, then write the slim core's manifest and
-      # full-package zip.
+      # Assemble the core (aji, the upscaling backend, ONNX Runtime/DirectML, the VC++ runtime, the
+      # updater and aji-runtime), then write its manifest and full-package zip. --store: the TensorRT
+      # runtime, builder packs, TensorRT-RTX's runtime and models come from the shared runtime packs.
       - name: Assemble package
-        run: ./builder/BuildMangaJaNai.exe ${{ github.event.inputs.version }} --app-dir app-publish --updater updater-publish/MangaJaNaiUpdater.exe --packs --out publish
+        run: ./builder/BuildMangaJaNai.exe ${{ github.event.inputs.version }} --app-dir app-publish --updater updater-publish/MangaJaNaiUpdater.exe --store --out publish
 
       - name: Build setup installer
         shell: pwsh
@@ -94,9 +96,8 @@ jobs:
           artifacts: >-
             MangaJaNaiGUI-Setup-${{ github.event.inputs.version }}.exe,
             publish/MangaJaNaiGUI-full-package-${{ github.event.inputs.version }}.zip,
-            manifest.json,
-            publish/packs-v${{ github.event.inputs.version }}/component-*.7z,
-            publish/packs-v${{ github.event.inputs.version }}/packs.json
+            manifest.json
+
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # Linux leg. Runs in mpv-AnimeJaNai's old-baseline build image (Ubuntu 22.04: glibc 2.35, .NET 10
@@ -153,17 +154,14 @@ jobs:
 
       # As on Windows, plus MangaJaNaiGUI-v<ver>-linux-x64.tar.gz (the core) in place of the zip.
       - name: Assemble package (linux-x64)
-        run: ./builder/BuildMangaJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/MangaJaNaiUpdater --packs --out publish
+        run: ./builder/BuildMangaJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/MangaJaNaiUpdater --store --out publish
 
-      - name: Build AppImage (TensorRT runtime and models baked in; the GPU's kernels fetched on demand)
+      - name: Build AppImage (the core; TensorRT and the models come from the shared pack store on first launch)
         continue-on-error: true  # don't block the tarball release if AppImage tooling trips
         run: |
           full="appimage-tree/MangaJaNaiConverterGui-v$VER"
           mkdir -p "$full"
           cp -a "publish/MangaJaNaiConverterGui-v$VER/." "$full/"
-          for pack in publish/packs-v$VER/component-trt-runtime-linux-x64.7z publish/packs-v$VER/component-models-*-linux-x64.7z; do
-            "$full/7zz" x -snl -y -o"$full" "$pack"
-          done
           chmod +x installer/linux/*.sh installer/linux/AppRun
           installer/linux/build-appimage.sh "$full" "$VER" .
 
@@ -186,7 +184,6 @@ jobs:
           artifacts: >-
             publish/MangaJaNaiGUI-v${{ github.event.inputs.version }}-linux-x64.tar.gz,
             *.AppImage,
-            manifest-linux-x64.json,
-            publish/packs-v${{ github.event.inputs.version }}/component-*-linux-x64.7z,
-            publish/packs-v${{ github.event.inputs.version }}/packs-linux-x64.json
+            manifest-linux-x64.json
+
           token: ${{ secrets.GITHUB_TOKEN }}
