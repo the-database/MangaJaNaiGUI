@@ -1,6 +1,7 @@
 using Avalonia.Collections;
 using MangaJaNaiConverterGui.Services;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,7 +22,9 @@ namespace MangaJaNaiConverterGui.Tests
         public bool IsTensorRtRtxInstalled => false;
         public bool IsTensorRtRuntimeInstalled => false;
         public string UserModelsDirectory => AppStateFolder;
+        public IReadOnlyList<string> StoreModelsDirectories => [];
         public string BundledModelsDirectory => AppStateFolder;
+        public IReadOnlyList<string> ModelsDirectories => [AppStateFolder];
         public bool AreModelsInstalled => true;
         public string EngineCacheDirectory => AppStateFolder;
         public AvaloniaList<string> AllModels { get; } = new(models);

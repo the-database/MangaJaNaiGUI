@@ -1,4 +1,5 @@
 using Avalonia.Collections;
+using System.Collections.Generic;
 
 namespace MangaJaNaiConverterGui.Services
 {
@@ -20,22 +21,26 @@ namespace MangaJaNaiConverterGui.Services
         bool IsTensorRtRtxInstalled { get; }
         bool IsTensorRtRuntimeInstalled { get; }
 
-        // Models the user added (shown first) and the default models installed with the app.
+        // Models the user added (shown first) and the default models: the shared pack store's model
+        // packs (inference/aji-runtime.json "models"), and the models folder an install from before the
+        // store has. ModelsDirectories is all of them, in lookup order.
         string UserModelsDirectory { get; }
+        IReadOnlyList<string> StoreModelsDirectories { get; }
         string BundledModelsDirectory { get; }
+        IReadOnlyList<string> ModelsDirectories { get; }
         bool AreModelsInstalled { get; }
 
         // TensorRT (*.engine) and TensorRT-RTX (*.rtxengine + *.jitcache) engines built for this GPU,
         // one per model and tile size. Each backend's stale cleanup only touches its own files.
         string EngineCacheDirectory { get; }
 
-        // The ONNX models in both folders, plus "No Model". Cached; RefreshModels rescans, and says
+        // The ONNX models in all the folders, plus "No Model". Cached; RefreshModels rescans, and says
         // whether the list changed.
         AvaloniaList<string> AllModels { get; }
         bool RefreshModels();
 
         // A chain's model file as the backend finds it: the user's models folder first, then the
-        // bundled one (a full path as it is). Null for No Model or a file that isn't there.
+        // default ones (a full path as it is). Null for No Model or a file that isn't there.
         string? ResolveModelPath(string? model);
     }
 }

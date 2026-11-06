@@ -36,6 +36,8 @@
 //   MANGAJANAI_MODELS_DIR   -> a local directory holding the model archives (by their asset names) and/or
 //                              loose .onnx files named by the precision rule below
 //   VC_CRT_DIR              -> a Microsoft.VC14x.CRT directory (default: found through vswhere)
+//   AJI_RUNTIME_LOCAL       -> a local aji-runtime(.exe), the shared pack store's tool (default: the
+//                              pinned the-database/aji-runtime release)
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using SevenZipExtractor;
@@ -82,13 +84,27 @@ var trtDebSha256 = new Dictionary<string, string>
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
 // Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
-const string AjiVersion        = "v0.21.0";
-const string AjiSha256Win      = "00adb8dcbcb9cab02e2638d9ff302aae60fb8cccdb8771a3d557a5363359be19";
+const string AjiVersion        = "v0.23.0";
+const string AjiSha256Win      = "9ca467e3572a03e11ac8fdc01c004c735efaa7f776d5fb996719e038af9c366d";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
-// licence notices (~232 MB unpacked). It becomes the trt-rtx pack, never part of the core.
-const string AjiTrtRtxSha256Win = "213204243f947affebbe32db99379a4fea74cc1ab50657370dfff26fb72df0de";
+// licence notices (~232 MB unpacked). aji_trtrtx.dll stays in the core (it must match aji.dll); the
+// runtime becomes the trt-rtx pack.
+const string AjiTrtRtxSha256Win = "d974804c20afdd080ff2e1164477968f432d01cd9cd8886d23e484158ec6f179";
 // Linux: libaji.so + libaji_trt.so (TensorRT only).
-const string AjiSha256Linux    = "bed7999163a9aec8f9ff3367a853f3e06eb97795083e6f59e2012f7a86b2a9e9";
+const string AjiSha256Linux    = "98b1f81151580243676021eb180b2b005014d6c962e9e03c8d526f588f9af054";
+// The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
+// per-GPU builder packs, TensorRT-RTX's runtime and the default models, installed once per user into
+// the shared pack store by aji-runtime (the updater's store mode). The manifest carries the platform's
+// index URL and SHA-256. Its runtime-packs.yml asks bump-pins.yml here for the bump PR.
+const string RuntimeRepo       = "the-database/animejanai-inference";
+const string RuntimeTag        = "runtime-2";
+const string RuntimeIndexSha256Win   = "5b6f0450ba4eed34d6e25dde072ce1298f083d91d142fd858495483e7711aea1";
+const string RuntimeIndexSha256Linux = "d441210f7747b255f17483f7c8b921817ad3f997abab5a1ba5d348b51511ab61";
+// aji-runtime, the store's tool, from its release (the binary in aji-runtime-<platform>.zip/.tar.gz).
+const string AjiRuntimeRepo    = "the-database/aji-runtime";
+const string AjiRuntimeVersion = "v0.1.0";
+const string AjiRuntimeSha256Win   = "";
+const string AjiRuntimeSha256Linux = "";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra": 7za.exe for the updater's packs
 // 7-Zip's own GitHub releases (ip7z/7zip; same file as www.7-zip.org/a/, which CI runners have
 // failed to resolve). 7z2602-extra.7z:
@@ -381,7 +397,11 @@ bool KeepInferenceFile(string name) => plat.IsWindows
 
 // The TensorRT-RTX backend's files (aji-trtrtx-windows-x64.zip): aji_trtrtx.dll, the TensorRT for RTX
 // runtime (tensorrt_rtx_<M>_<m>.dll, tensorrt_onnxparser_rtx_<M>_<m>.dll) and NVIDIA's notices, which
-// must ship with the DLLs. Exactly these make up the trt-rtx pack.
+// must ship with the DLLs. IsTrtRtxFile picks them out of the asset; the trt-rtx pack is all of them
+// but aji_trtrtx.dll, which stays in the core (IsTrtRtxRuntimeFile).
+static bool IsTrtRtxRuntimeFile(string name) =>
+    IsTrtRtxFile(name) && !name.Equals("aji_trtrtx.dll", StringComparison.OrdinalIgnoreCase);
+
 static bool IsTrtRtxFile(string name) =>
     name.Equals("aji_trtrtx.dll", StringComparison.OrdinalIgnoreCase) ||
     ((name.StartsWith("tensorrt_rtx_", StringComparison.OrdinalIgnoreCase) ||
@@ -485,6 +505,58 @@ async Task InstallAji()
         var name = Path.GetFileName(entry);
         return IsTrtRtxFile(name) ? Path.Combine(inferencePath, name) : null;
     });
+}
+
+// aji-runtime(.exe), the shared pack store's tool, at the install root beside the updater, which runs it.
+async Task InstallAjiRuntime()
+{
+    string exe = plat.Exe("aji-runtime");
+    string dest = Path.Combine(installDirectory, exe);
+    var local = Environment.GetEnvironmentVariable("AJI_RUNTIME_LOCAL");
+    if (!string.IsNullOrEmpty(local))
+    {
+        Console.WriteLine($"Using local aji-runtime: {local}");
+        File.Copy(local, dest, true);
+    }
+    else
+    {
+        string sha = plat.IsWindows ? AjiRuntimeSha256Win : AjiRuntimeSha256Linux;
+        if (sha.Length == 0)
+        {
+            throw new InvalidOperationException($"No aji-runtime {AjiRuntimeVersion} pinned for {plat.Rid}; set AJI_RUNTIME_LOCAL.");
+        }
+        string asset = plat.IsWindows ? "aji-runtime-windows-x64.zip" : "aji-runtime-linux-x64.tar.gz";
+        string archive = Path.Combine(workDirectory, asset);
+        Console.WriteLine($"Downloading {asset} {AjiRuntimeVersion}...");
+        await DownloadFileAsync($"https://github.com/{AjiRuntimeRepo}/releases/download/{AjiRuntimeVersion}/{asset}", archive, _ => { });
+        VerifySha256(archive, sha);
+        if (plat.IsWindows)
+        {
+            ExtractZipFiltered(archive, entry => Path.GetFileName(entry) == exe ? dest : null);
+        }
+        else
+        {
+            using var file = File.OpenRead(archive);
+            using var gz = new GZipStream(file, CompressionMode.Decompress);
+            using var tar = new TarReader(gz);
+            while (tar.GetNextEntry() is TarEntry e)
+            {
+                if (Path.GetFileName(e.Name) == exe && e.DataStream is Stream data)
+                {
+                    using var o = File.Create(dest);
+                    data.CopyTo(o);
+                }
+            }
+        }
+        if (!File.Exists(dest))
+        {
+            throw new InvalidOperationException($"{asset} has no {exe}");
+        }
+    }
+    if (!plat.IsWindows)
+    {
+        MakeExecutable(dest);
+    }
 }
 
 // One asset of the pinned animejanai-inference release, sha-verified. Returns the downloaded path.
@@ -850,9 +922,19 @@ void WriteVersionAndManifest()
             models_illustrationjanai_fp32 = ModelDep("models-illustrationjanai-fp32"),
             models_illustrationjanai_bf16 = ModelDep("models-illustrationjanai-bf16"),
             sevenzip = SevenZipVersion,
+            aji_runtime = AjiRuntimeVersion,
+            runtime = RuntimeTag,
         },
-        // Runtime-created data in the install folder that an update must never touch.
-        user_preserve = new[] { "components.json" },
+        // The shared runtime packs (the updater's store mode): this platform's index and its pin.
+        runtime = new
+        {
+            tag = RuntimeTag,
+            index_url = $"https://github.com/{RuntimeRepo}/releases/download/{RuntimeTag}/packs-{(plat.IsWindows ? "windows" : "linux")}-x64.json",
+            index_sha256 = plat.IsWindows ? RuntimeIndexSha256Win : RuntimeIndexSha256Linux,
+        },
+        // Runtime-created data in the install folder that an update must never touch:
+        // aji-runtime.json is written by the store for this install.
+        user_preserve = new[] { "components.json", "inference/aji-runtime.json" },
         files,
     };
 
@@ -990,7 +1072,7 @@ async Task<List<string>> EmitComponentPacks()
     // The TensorRT-RTX backend (recommended on RTX 20 / GTX 16 series and newer, see the updater). Its dep is
     // aji: aji_trtrtx.dll has to match aji.dll, so the pack goes stale with every aji bump. It runs
     // on trt-runtime's cudart, and its fallback to TensorRT needs trt-runtime too.
-    packs.Add(("trt-rtx", "aji", Rel(Directory.GetFiles(inferencePath).Where(f => IsTrtRtxFile(Path.GetFileName(f))))));
+    packs.Add(("trt-rtx", "aji", Rel(Directory.GetFiles(inferencePath).Where(f => IsTrtRtxRuntimeFile(Path.GetFileName(f))))));
 
     var index = new List<object>();
     var packedFiles = new List<string>();
@@ -1068,6 +1150,7 @@ if (plat.IsWindows)
     InstallVcRuntime();
 }
 await InstallBackendCli();
+await InstallAjiRuntime();
 await InstallModels();
 
 // The custom updater ships at the install root next to the app.

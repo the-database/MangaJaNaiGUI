@@ -70,6 +70,13 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Check: HadLegacyD
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
+; First drop this install's ref in the shared pack store (%LOCALAPPDATA%\the-database\aji, shared
+; with other apps): the TensorRT runtime and models no other installed app uses are removed with it. An
+; install from before the store has no aji-runtime.exe; without it the folder's deletion below leaves
+; a dead ref that the store frees later anyway.
+[UninstallRun]
+Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id mangajanai-gui"; Flags: runhidden skipifdoesntexist waituntilterminated; RunOnceId: "mangajanai-gui-unref"
+
 ; Remove the whole app folder, including files created at runtime (component packs, components.json,
 ; update staging, the updater's .old copy). In %APPDATA% remove the TensorRT engine cache and logs,
 ; but keep settings and models (which may include models the user added).
