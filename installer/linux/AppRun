@@ -1,12 +1,11 @@
 #!/bin/sh
 # AppImage entrypoint for MangaJaNai GUI.
 #
-# The AppImage mounts read-only, and carries the TensorRT runtime and the default models. Settings, the
-# user's models and the TensorRT engines live where an installed copy keeps them
-# ($XDG_CONFIG_HOME/MangaJaNaiConverterGui, MANGAJANAI_STATE_DIR). The TensorRT builder kernels for this
-# GPU (needed to build engines; cached engines run without them) are fetched once into
-# $XDG_DATA_HOME/MangaJaNaiGUI. The updater is not shipped in the AppImage: a new version is a new
-# AppImage.
+# The AppImage mounts read-only. Settings, the user's models and the TensorRT engines live where an
+# installed copy keeps them ($XDG_CONFIG_HOME/MangaJaNaiConverterGui, MANGAJANAI_STATE_DIR). The
+# TensorRT runtime, this GPU's builder pack and the default models live in the shared pack store,
+# installed on first launch (below). The updater is not shipped in the AppImage: a new version is a
+# new AppImage.
 set -eu
 
 HERE="$(dirname "$(readlink -f "$0")")"
@@ -24,7 +23,7 @@ case "${1:-}" in
         update-desktop-database "$APPS" 2>/dev/null || true
         echo "Removed the MangaJaNai GUI menu entry."
         echo "(settings, models and engines in ${XDG_CONFIG_HOME:-$HOME/.config}/MangaJaNaiConverterGui and the"
-        echo " kernels in ${XDG_DATA_HOME:-$HOME/.local/share}/MangaJaNaiGUI are kept; delete those folders to clear them)"
+        echo " the TensorRT runtime and models in the shared pack store are kept while this AppImage exists)"
         exit 0
     fi
     target="${APPIMAGE:-$HERE/AppRun}"
@@ -53,53 +52,69 @@ esac
 
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}/MangaJaNaiGUI"
 STATE="${XDG_CONFIG_HOME:-$HOME/.config}/MangaJaNaiConverterGui"
-mkdir -p "$DATA/inference" "$STATE"
+mkdir -p "$DATA" "$STATE"
 
-# The builder kernels for this GPU, from this version's release: component-trt-sm<N>-linux-x64.7z, or
-# the PTX fallback for a GPU without its own pack. The fetch runs in the background so the window
-# appears right away; it's only needed once an engine is built. Progress goes to $DATA/fetch.log. 7zz
-# is copied out of the image first: the mount goes away when the app exits, and the fetch may outlive
-# it. A failure is non-fatal (offline, or a draft release whose assets need auth).
+# TensorRT, this GPU's builder pack and the default models come from the shared pack store
+# (~/.local/share/the-database/aji, shared with other apps: aji-runtime), installed by the aji-runtime
+# in the image from the runtime release manifest.json pins. One install per version and pack set, in
+# the background so the window appears right away (the app shows the runtime as missing until it's
+# done); progress goes to $DATA/fetch.log. libaji and the app find the packs through
+# $DATA/aji-runtime.json, which AJI_RUNTIME_JSON points them at (the image is read-only). The store
+# keeps them while this AppImage file exists (its ref is the AppImage's path); a new version's
+# AppImage installs its own set, and packs no AppImage or app uses any more are freed. aji-runtime is
+# copied out of the image first: the mount goes away when the app exits, and the install may outlive
+# it. A failure is non-fatal (offline): it runs again on the next launch.
 ver="$(cat "$HERE/version.txt" 2>/dev/null || echo "")"
-relbase="https://github.com/the-database/MangaJaNaiGUI/releases/download/${ver}"
-sm="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d ' .')"
-need_sm=0
-[ -n "$sm" ] && ! ls "$DATA/inference"/libnvinfer_builder_resource_* >/dev/null 2>&1 && need_sm=1
-# One fetch at a time; the lock holds the fetching shell's pid, so a lock left by a fetch that was
-# killed is noticed and cleared on the next launch.
+manifest="$HERE/manifest.json"
+url="$(sed -n 's/.*"index_url": *"\([^"]*\)".*/\1/p' "$manifest" 2>/dev/null | head -1)"
+sha="$(sed -n 's/.*"index_sha256": *"\([0-9a-f]*\)".*/\1/p' "$manifest" 2>/dev/null | head -1)"
+export AJI_RUNTIME_JSON="$DATA/aji-runtime.json"
+# The newest NVIDIA GPU's compute capability (86 for 8.6) picks the DAT2/HAT variant: bf16 on 8.0+,
+# else fp32. Without an NVIDIA GPU there's no TensorRT, so only the models.
+cc="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | tr -d ' .' | sort -n | tail -1)"
+variant=fp32
+[ "${cc:-0}" -ge 80 ] 2>/dev/null && variant=bf16
+want="models-mangajanai,models-illustrationjanai,models-illustrationjanai-$variant"
+# trt: the TensorRT runtime and a builder pack per GPU generation (aji-runtime asks NVML). Linux has
+# no TensorRT-RTX.
+[ -n "$cc" ] && want="trt,$want"
+stamp="$DATA/aji-runtime.stamp"
+target="${APPIMAGE:-$HERE/AppRun}"
+need=0
+if [ ! -f "$AJI_RUNTIME_JSON" ] || [ "$(cat "$stamp" 2>/dev/null)" != "$ver $want" ]; then
+    need=1
+fi
+# One install at a time; the lock holds the installing shell's pid, so a lock left by an install
+# that was killed is noticed and cleared on the next launch.
 lock="$DATA/.fetch.lock"
 if [ -f "$lock" ] && ! kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
     rm -f "$lock"
 fi
-if [ $need_sm = 1 ] && [ -n "$ver" ] && command -v curl >/dev/null 2>&1 && [ ! -f "$lock" ]; then
-    cp -f "$HERE/7zz" "$DATA/7zz" 2>/dev/null || true
-    export DATA relbase sm lock
+if [ $need = 1 ] && [ -x "$HERE/aji-runtime" ] && [ -n "$url" ] && [ -n "$sha" ] && [ ! -f "$lock" ]; then
+    cp -f "$HERE/aji-runtime" "$DATA/aji-runtime" 2>/dev/null || true
+    export DATA ver url sha want stamp target lock
     # setsid: its own session, so closing the app (or Ctrl+C in its terminal) doesn't stop it
-    fetcher='
+    installer='
         echo $$ > "$lock"
         trap '\''rm -f "$lock"'\'' EXIT
-        for pack in "trt-sm$sm" trt-ptx; do
-            asset="component-$pack-linux-x64.7z"
-            echo "MangaJaNai GUI: fetching $asset (one-time)..."
-            if curl -fsSL "$relbase/$asset" -o "$DATA/$asset.part"; then
-                "$DATA/7zz" x -snl -y -o"$DATA" "$DATA/$asset.part" >/dev/null 2>&1 || true
-                rm -f "$DATA/$asset.part"
-                break
-            fi
-            rm -f "$DATA/$asset.part"
-            echo "MangaJaNai GUI: could not fetch $asset."
-        done
+        echo "MangaJaNai GUI: installing $want into the shared pack store (one-time)..."
+        if "$DATA/aji-runtime" ensure --app-id mangajanai-gui-appimage --app-path "$target" \
+               --app-version "$ver" --index "$url" --index-sha256 "$sha" --want "$want" --aji-dir "$DATA"; then
+            echo "$ver $want" > "$stamp"
+            # builder kernels an AppImage from before the store fetched here
+            rm -f "$DATA"/inference/libnvinfer_builder_resource_* "$DATA/7zz"
+            rmdir "$DATA/inference" 2>/dev/null || true
+        else
+            echo "MangaJaNai GUI: the pack store install failed; it runs again on the next launch."
+        fi
         true'
     if command -v setsid >/dev/null 2>&1; then
-        setsid sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+        setsid sh -c "$installer" >"$DATA/fetch.log" 2>&1 < /dev/null &
     else
-        nohup sh -c "$fetcher" >"$DATA/fetch.log" 2>&1 < /dev/null &
+        nohup sh -c "$installer" >"$DATA/fetch.log" 2>&1 < /dev/null &
     fi
 fi
 
 export MANGAJANAI_STATE_DIR="$STATE"
-# The backend and trtexec load the TensorRT runtime from the image (the app adds that folder itself)
-# and the fetched builder kernels from $DATA.
-export LD_LIBRARY_PATH="$DATA/inference${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd "$STATE"
 exec "$HERE/MangaJaNaiConverterGui" "$@"
