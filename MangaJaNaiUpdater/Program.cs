@@ -1108,8 +1108,11 @@ async Task<int> AutoComponentsAsync()
         var have = ReadStoreInstalled();
         var want = StoreWanted(index);
         want.UnionWith(rec);
+        // The ref records the packs of the runtime release the last ensure installed from, and that
+        // ensure's app version: after an update (which may pin a newer runtime release), ensure again.
         bool complete = want.All(have.ContainsKey) && have.Keys.All(want.Contains) &&
-                        File.Exists(Path.Combine(inferenceDir, "aji-runtime.json"));
+                        File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")) &&
+                        ReadStoreRefVersion() == ReadLocalVersion();
         int rc = complete && !PrivatePackFilesLeft(index) ? 0 : StoreEnsure(index, want);
         DeleteRetiredFiles(index);
         if (rc == 0 && complete)
@@ -1261,6 +1264,26 @@ Dictionary<string, string> ReadStoreInstalled()
     }
     catch { /* unreadable: nothing installed */ }
     return installed;
+}
+
+// The app version this install's ref was last written for ("" without a ref).
+string ReadStoreRefVersion()
+{
+    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
+    if (rc != 0)
+    {
+        return "";
+    }
+    try
+    {
+        using var doc = JsonDocument.Parse(stdout);
+        return doc.RootElement.TryGetProperty("app_version", out var v) && v.ValueKind == JsonValueKind.String
+            ? v.GetString() ?? "" : "";
+    }
+    catch
+    {
+        return "";
+    }
 }
 
 // The store folder of each pack this install has, under the GUI's names.
