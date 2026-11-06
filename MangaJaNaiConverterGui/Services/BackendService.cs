@@ -1,8 +1,10 @@
 using Avalonia.Collections;
 using Splat;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 
 namespace MangaJaNaiConverterGui.Services
 {
@@ -11,10 +13,15 @@ namespace MangaJaNaiConverterGui.Services
         public const string NoModel = "No Model";
 
         private readonly IUpdateManagerService _updateManagerService;
+        private readonly string? _inferenceDirectory;
+        private readonly string? _stateDirectory;
 
-        public BackendService(IUpdateManagerService? updateManagerService = null)
+        // The folder overrides are for tests (the env vars below are process-wide).
+        public BackendService(IUpdateManagerService? updateManagerService = null, string? inferenceDirectory = null, string? stateDirectory = null)
         {
             _updateManagerService = updateManagerService ?? Locator.Current.GetService<IUpdateManagerService>()!;
+            _inferenceDirectory = inferenceDirectory;
+            _stateDirectory = stateDirectory;
         }
 
         private bool Installed => _updateManagerService?.IsInstalled ?? false;
@@ -23,12 +30,12 @@ namespace MangaJaNaiConverterGui.Services
         // launches never touch a real install's state (the Linux AppImage points it at the same folder
         // an install uses). An install keeps settings and user models in %APPDATA% (where 1.x kept them
         // too, so they carry over), on Linux in ~/.config; a dev build next to the working directory.
-        public string AppStateFolder =>
-            Environment.GetEnvironmentVariable("MANGAJANAI_STATE_DIR") is { Length: > 0 } stateDir
+        public string AppStateFolder => _stateDirectory ??
+            (Environment.GetEnvironmentVariable("MANGAJANAI_STATE_DIR") is { Length: > 0 } stateDir
                 ? stateDir
                 : Installed
                     ? Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create), @"MangaJaNaiConverterGui")
-                    : Path.GetFullPath(@".");
+                    : Path.GetFullPath(@"."));
 
         public string AppStateFilename => "appstate2.json";
         public string AppStatePath => Path.Join(AppStateFolder, AppStateFilename);
@@ -37,10 +44,10 @@ namespace MangaJaNaiConverterGui.Services
         public string EngineCacheDirectory => Path.Combine(AppStateFolder, "engines");
 
         // MANGAJANAI_BACKEND_DIR points a dev build at a local inference folder.
-        public string InferenceDirectory =>
-            Environment.GetEnvironmentVariable("MANGAJANAI_BACKEND_DIR") is { Length: > 0 } backendDir
+        public string InferenceDirectory => _inferenceDirectory ??
+            (Environment.GetEnvironmentVariable("MANGAJANAI_BACKEND_DIR") is { Length: > 0 } backendDir
                 ? backendDir
-                : Path.Combine(AppContext.BaseDirectory, "inference");
+                : Path.Combine(AppContext.BaseDirectory, "inference"));
 
         // "mangajanai_upscale" -> "mangajanai_upscale.exe" on Windows; Linux binaries carry no suffix.
         public static string Exe(string stem) => OperatingSystem.IsWindows() ? stem + ".exe" : stem;
@@ -52,13 +59,49 @@ namespace MangaJaNaiConverterGui.Services
 
         public bool IsBackendInstalled => File.Exists(BackendExePath) && File.Exists(Path.Combine(InferenceDirectory, AjiLibrary));
 
-        // libaji builds TensorRT-RTX for Windows only.
-        public bool IsTensorRtRtxInstalled => UpscaleBackends.TensorRtRtxAvailable && File.Exists(Path.Combine(InferenceDirectory, "aji_trtrtx.dll"));
+        // libaji builds TensorRT-RTX for Windows only. aji_trtrtx.dll ships with libaji; its runtime is
+        // the trt-rtx component: in the shared pack store (inference/aji-runtime.json "trtrtx"), or in
+        // the inference folder (an install from before the store).
+        public bool IsTensorRtRtxInstalled => UpscaleBackends.TensorRtRtxAvailable && File.Exists(Path.Combine(InferenceDirectory, "aji_trtrtx.dll")) &&
+            (RuntimePack("trtrtx") is string rtx ? HasFile(rtx, "tensorrt_rtx_*.dll") : HasFile(InferenceDirectory, "tensorrt_rtx_*.dll"));
 
         // trtexec and cudart ship only in trt-runtime: TensorRT builds with the one, and both
-        // TensorRT backends link the other.
-        public bool IsTensorRtRuntimeInstalled => File.Exists(Path.Combine(InferenceDirectory, Exe("trtexec"))) &&
-            HasFile(InferenceDirectory, OperatingSystem.IsWindows() ? "cudart64_*.dll" : "libcudart.so*");
+        // TensorRT backends link the other. In the shared pack store, or in the inference folder.
+        public bool IsTensorRtRuntimeInstalled => RuntimeFolderHasTrt(RuntimePack("trt") ?? InferenceDirectory);
+
+        private static bool RuntimeFolderHasTrt(string dir) => File.Exists(Path.Combine(dir, Exe("trtexec"))) &&
+            HasFile(dir, OperatingSystem.IsWindows() ? "cudart64_*.dll" : "libcudart.so*");
+
+        // inference/aji-runtime.json, which the updater has the shared pack store write beside libaji:
+        // the pack folders libaji loads TensorRT / TensorRT-RTX from, and the model pack folders.
+        private JsonElement? RuntimeJson()
+        {
+            try
+            {
+                string path = Path.Combine(InferenceDirectory, "aji-runtime.json");
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+                using var doc = JsonDocument.Parse(File.ReadAllText(path));
+                return doc.RootElement.Clone();
+            }
+            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException)
+            {
+                return null;
+            }
+        }
+
+        private string? RuntimePack(string key) =>
+            RuntimeJson() is JsonElement j && j.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String &&
+            v.GetString() is { Length: > 0 } dir && Directory.Exists(dir) ? dir : null;
+
+        public IReadOnlyList<string> StoreModelsDirectories =>
+            RuntimeJson() is JsonElement j && j.TryGetProperty("models", out var m) && m.ValueKind == JsonValueKind.Array
+                ? m.EnumerateArray().Select(v => v.GetString() ?? "").Where(d => d.Length > 0).ToList()
+                : [];
+
+        public IReadOnlyList<string> ModelsDirectories => [UserModelsDirectory, .. StoreModelsDirectories, BundledModelsDirectory];
 
         private static bool HasFile(string dir, string pattern)
         {
@@ -74,7 +117,7 @@ namespace MangaJaNaiConverterGui.Services
 
         public string BundledModelsDirectory => Path.GetFullPath(Path.Combine(InferenceDirectory, "..", "models"));
 
-        public bool AreModelsInstalled => ModelFiles(BundledModelsDirectory).Any() || ModelFiles(UserModelsDirectory).Any();
+        public bool AreModelsInstalled => ModelsDirectories.Any(d => ModelFiles(d).Any());
 
         private static string[] ModelFiles(string dir)
         {
@@ -123,7 +166,7 @@ namespace MangaJaNaiConverterGui.Services
                 {
                     return File.Exists(model) ? model : null;
                 }
-                foreach (var dir in new[] { UserModelsDirectory, BundledModelsDirectory })
+                foreach (var dir in ModelsDirectories)
                 {
                     var path = Path.Combine(dir, model);
                     if (File.Exists(path))
@@ -140,7 +183,7 @@ namespace MangaJaNaiConverterGui.Services
 
         private AvaloniaList<string> ScanModels()
         {
-            var names = ModelFiles(UserModelsDirectory).Concat(ModelFiles(BundledModelsDirectory))
+            var names = ModelsDirectories.SelectMany(ModelFiles)
                 .Select(Path.GetFileName)
                 .OfType<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
