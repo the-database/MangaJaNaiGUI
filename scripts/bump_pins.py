@@ -3,7 +3,8 @@
 
 Sources:
   libaji          the-database/animejanai-inference release: AjiVersion, AjiSha256Win,
-                  AjiTrtRtxSha256Win and AjiSha256Linux in BuildMangaJaNai/Program.cs
+                  AjiTrtRtxSha256Win, AjiTrtRtxBackendSha256Win and AjiSha256Linux in
+                  BuildMangaJaNai/Program.cs
   mangajanai-cli  the-database/MangaJaNaiCLI release (the backend): CliVersion, CliSha256 and
                   CliSha256Linux in BuildMangaJaNai/Program.cs
   runtime-packs   the shared runtime packs, a the-database/animejanai-inference runtime-<n> release:
@@ -194,6 +195,7 @@ def bump_libaji(tag, changes, allow_downgrade):
     f.set("AjiVersion", const("AjiVersion"), tag)
     for name, pin in (("aji-windows-x64.zip", "AjiSha256Win"),
                       ("aji-trtrtx-windows-x64.zip", "AjiTrtRtxSha256Win"),
+                      ("aji-trtrtx-backend-windows-x64.zip", "AjiTrtRtxBackendSha256Win"),
                       ("aji-linux-x64.tar.zst", "AjiSha256Linux")):
         sha, _ = digest(asset(rel, name))
         f.set(pin, const(pin, SHA), sha)
