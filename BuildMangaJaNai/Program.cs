@@ -103,8 +103,8 @@ const string RuntimeIndexSha256Linux = "d441210f7747b255f17483f7c8b921817ad3f997
 // aji-runtime, the store's tool, from its release (the binary in aji-runtime-<platform>.zip/.tar.gz).
 const string AjiRuntimeRepo    = "the-database/aji-runtime";
 const string AjiRuntimeVersion = "v0.1.0";
-const string AjiRuntimeSha256Win   = "";
-const string AjiRuntimeSha256Linux = "";
+const string AjiRuntimeSha256Win   = "b936caadcff9fe04e7ef1a4cb35e8091f7c9e094eb21e420387176108c178475";
+const string AjiRuntimeSha256Linux = "5c97da8db3a3d1bb432bc79d5316cbd59f80385e0ffecc59d40cba7f89d6845d";
 const string SevenZipVersion   = "2602";                  // 7-zip "extra": 7za.exe for the updater's packs
 // 7-Zip's own GitHub releases (ip7z/7zip; same file as www.7-zip.org/a/, which CI runners have
 // failed to resolve). 7z2602-extra.7z:
