@@ -78,7 +78,11 @@ namespace MangaJaNaiConverterGui.Services
         {
             try
             {
-                string path = Path.Combine(InferenceDirectory, "aji-runtime.json");
+                // AJI_RUNTIME_JSON names it where the inference folder is read-only (the AppImage), as
+                // it does for libaji.
+                string path = Environment.GetEnvironmentVariable("AJI_RUNTIME_JSON") is { Length: > 0 } env
+                    ? env
+                    : Path.Combine(InferenceDirectory, "aji-runtime.json");
                 if (!File.Exists(path))
                 {
                     return null;

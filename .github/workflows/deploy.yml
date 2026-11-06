@@ -23,8 +23,9 @@ on:
 # The deploy-linux leg adds the RID-suffixed Linux assets to the same release:
 #   - MangaJaNaiGUI-v<ver>-linux-x64.tar.gz               the slim core with install.sh (the download, and
 #                                                         MangaJaNaiUpdater's full update on Linux)
-#   - MangaJaNaiGUI-x86_64-v<ver>.AppImage                the core with the TensorRT runtime and models baked
-#                                                         in; the GPU's builder kernels download on first launch
+#   - MangaJaNaiGUI-x86_64-v<ver>.AppImage                the core; the TensorRT runtime, the GPU's builder pack
+#                                                         and the models install into the shared pack store on
+#                                                         first launch
 #   - manifest-linux-x64.json
 #   - component-*-linux-x64.7z + packs-linux-x64.json     the Linux component packs (no TensorRT-RTX, no DirectML)
 # Both legs upload hundreds of MB with one token and can trip GitHub's upload rate limit; dispatch
@@ -155,15 +156,12 @@ jobs:
       - name: Assemble package (linux-x64)
         run: ./builder/BuildMangaJaNai "$VER" --target linux-x64 --app-dir app-publish --updater updater-publish/MangaJaNaiUpdater --packs --out publish
 
-      - name: Build AppImage (TensorRT runtime and models baked in; the GPU's kernels fetched on demand)
+      - name: Build AppImage (the core; TensorRT and the models come from the shared pack store on first launch)
         continue-on-error: true  # don't block the tarball release if AppImage tooling trips
         run: |
           full="appimage-tree/MangaJaNaiConverterGui-v$VER"
           mkdir -p "$full"
           cp -a "publish/MangaJaNaiConverterGui-v$VER/." "$full/"
-          for pack in publish/packs-v$VER/component-trt-runtime-linux-x64.7z publish/packs-v$VER/component-models-*-linux-x64.7z; do
-            "$full/7zz" x -snl -y -o"$full" "$pack"
-          done
           chmod +x installer/linux/*.sh installer/linux/AppRun
           installer/linux/build-appimage.sh "$full" "$VER" .
 
