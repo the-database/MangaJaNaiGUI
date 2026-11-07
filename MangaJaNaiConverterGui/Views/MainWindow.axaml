@@ -434,7 +434,7 @@
 
                 <StackPanel Classes="row" IsVisible="{Binding CurrentWorkflow.ModeScaleSelected}">
                   <ContentControl Classes="hint" Content="Scale Factor"
-                                  ToolTip.Tip="All images will be upscaled by the specified scaling factor. For example, a factor of 2x will double the width and height of each image." />
+                                  ToolTip.Tip="All images will be upscaled by the specified scaling factor. For example, a factor of 2x will double the width and height of each image. When a chain resizes before upscaling, the factor applies to the resized image." />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.Is1x}" Content="1x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>1</x:Int32></ToggleButton.CommandParameter></ToggleButton>
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.Is2x}" Content="2x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>2</x:Int32></ToggleButton.CommandParameter></ToggleButton>
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.Is3x}" Content="3x" Command="{Binding CurrentWorkflow.SetUpscaleScaleFactor}"><ToggleButton.CommandParameter><x:Int32>3</x:Int32></ToggleButton.CommandParameter></ToggleButton>
@@ -691,7 +691,7 @@
                   </Grid.ColumnDefinitions>
                   <ContentControl Classes="hint" Content="Output Filename">
                     <ToolTip.Tip>
-                      <TextBlock TextWrapping="Wrap">The filename of the upscaled image(s) or archive(s), without the file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. Archives will be output with .cbz extension; images will be output with the extension of the image format selected below.</TextBlock>
+                      <TextBlock TextWrapping="Wrap">The filename of the upscaled image(s) or archive(s), without the file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. Archives will be output with .cbz extension; images will be output with the extension of the image format selected below. Files that would get the same name also get their own name added, for example <Run FontFamily="Consolas">upscaled-Vol 1.cbz</Run>.</TextBlock>
                     </ToolTip.Tip>
                   </ContentControl>
                   <TextBox Grid.Column="1" Text="{Binding CurrentWorkflow.OutputFilename}" />
