@@ -13,6 +13,13 @@ updates:
       nuget:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # Avalonia.Headless.XUnit is built against xunit 3.x; its [AvaloniaFact] tests fail at
+      # discovery on xunit.v3 4. Lift this once Avalonia ships a headless package for xunit 4.
+      - dependency-name: "xunit.v3"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "xunit.runner.visualstudio"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
