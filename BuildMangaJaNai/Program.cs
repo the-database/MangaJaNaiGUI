@@ -128,20 +128,21 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // yosh's crates/mangajanai-cli, released there on mangajanai-cli-v* tags), built on yosh-image +
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
+// v0.6.2 adds --control stdin, which Pause uses to unload the models (freeing the GPU memory).
 // v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
 // v0.5.0 writes JPEG XL (JxlSelected in the settings), which the GUI's JPEG XL format needs.
 // v0.2.0: images with uniform transparency are upscaled once instead of twice, varying transparency gets
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
 // --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
 // it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
-const string CliVersion        = "v0.6.1";
+const string CliVersion        = "v0.6.2";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
-const string CliSha256         = "5fcf6e2e59f50011fb307dfd3925a6ea923a5c474e17bec0f570d3d8ed40561e";
+const string CliSha256         = "b4c7ba8d699cca0fcb9d3e85caaf6485196315e9a4c6ee6594aa937e4badcd66";
 // Linux: the release's mangajanai-linux-x64.tar.zst. Its `mangajanai` is the same program as
 // mangajanai_upscale (one binary under two names, the GUI's --settings interface included), so it ships
 // as inference/mangajanai_upscale. The libaji it carries is left out: InstallAji supplies the same one.
 const string CliAssetLinux     = "mangajanai-linux-x64.tar.zst";
-const string CliSha256Linux    = "10054d12d05386e10cfe46afd675ec97205614ee69b7ae4bb53034e2a7b4af82";
+const string CliSha256Linux    = "d3eb39c90514c476d48ffccd7d83e43e331ee570dd61911205bde8efc556f3ca";
 
 // The default ONNX models, published as archives on each model's MangaJaNai release, one archive per
 // component pack. Every file is named <checkpoint>_<precision of the ONNX itself> (fp16, bf16 or fp32),
