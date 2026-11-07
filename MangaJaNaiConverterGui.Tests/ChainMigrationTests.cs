@@ -31,5 +31,19 @@ namespace MangaJaNaiConverterGui.Tests
         [InlineData("garbage", "Auto (Estimate)")]
         public void TileSizes(string saved, string migrated) =>
             Assert.Equal(migrated, UpscaleChain.MigrateTileSize(saved));
+
+        // The default is shown as "Default (512)" but saved as "Auto (Estimate)", which settings,
+        // .mwf workflows and MangaJaNaiCLI read.
+        [Fact]
+        public void DefaultTileShowsItsSize()
+        {
+            var chain = new UpscaleChain(new FakeBackendService([]));
+            Assert.Equal("Auto (Estimate)", chain.ModelTileSize);
+            Assert.Equal("Default (512)", chain.ModelTileSizeLabel);
+            chain.ModelTileSizeLabel = "768";
+            Assert.Equal("768", chain.ModelTileSize);
+            chain.ModelTileSizeLabel = "Default (512)";
+            Assert.Equal("Auto (Estimate)", chain.ModelTileSize);
+        }
     }
 }
