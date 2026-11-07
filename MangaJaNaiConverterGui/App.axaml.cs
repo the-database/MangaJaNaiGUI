@@ -89,6 +89,7 @@ namespace MangaJaNaiConverterGui
 
             state.CurrentWorkflow?.Validate();
             state.CheckAndDoBackup();
+            state.RemoveLegacyFiles();
             state.StartUpdateChecks();
 
             new MainWindow { DataContext = state }.Show();
