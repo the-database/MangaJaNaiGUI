@@ -41,7 +41,15 @@ namespace MangaJaNaiConverterGui.Services
         public string AppStatePath => Path.Join(AppStateFolder, AppStateFilename);
         public string LogsDirectory => Path.Combine(AppStateFolder, "logs");
         public string UserModelsDirectory => Path.Combine(AppStateFolder, "models");
-        public string EngineCacheDirectory => Path.Combine(AppStateFolder, "engines");
+        // TensorRT engines: rebuildable, but a few minutes each to build. An install that uses the
+        // shared pack store keeps them in the store's folder (engines/mangajanai-gui), so they move
+        // with it when the user puts the store on another drive (App Settings > Storage), and stay out
+        // of the roaming profile. Otherwise beside the settings, as before.
+        public string EngineCacheDirectory => UsesPackStore
+            ? Path.Combine(StoreLocation.DefaultRoot(), "engines", "mangajanai-gui")
+            : Path.Combine(AppStateFolder, "engines");
+
+        private bool UsesPackStore => Installed && File.Exists(Path.Combine(InferenceDirectory, "aji-runtime.json"));
 
         // MANGAJANAI_BACKEND_DIR points a dev build at a local inference folder.
         public string InferenceDirectory => _inferenceDirectory ??
