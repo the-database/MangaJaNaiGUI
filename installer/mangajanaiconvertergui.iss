@@ -83,6 +83,9 @@ Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id mangajanai-gui"; 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 Type: filesandordirs; Name: "{userappdata}\{#LegacyName}\engines"
+; The engine cache of an install that uses the shared pack store (in the store's folder, wherever
+; that has been moved to): only this app's subfolder.
+Type: filesandordirs; Name: "{localappdata}\the-database\aji\engines\mangajanai-gui"
 Type: filesandordirs; Name: "{userappdata}\{#LegacyName}\logs"
 Type: filesandordirs; Name: "{userappdata}\{#LegacyName}\python"
 

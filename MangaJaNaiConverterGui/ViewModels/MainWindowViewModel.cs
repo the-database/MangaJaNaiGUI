@@ -911,6 +911,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowComponentChanges));
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
                 this.RaisePropertyChanged(nameof(PauseEnabled));
                 this.RaisePropertyChanged(nameof(ContinueEnabled));
             }
@@ -1218,6 +1219,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         public void HandleAppSettingsSelected()
         {
             RequestShowAppSettings = true;
+            _ = RefreshStorage();
         }
 
         public void CloseAppSettings()
@@ -1235,6 +1237,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _componentsBusy, value);
                 this.RaisePropertyChanged(nameof(AllowComponentChanges));
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
             }
         }
 
@@ -1364,6 +1367,13 @@ namespace MangaJaNaiConverterGui.ViewModels
                 InterruptedRunJob = JobOf(CurrentWorkflow);
             }
             var since = InterruptedRunSince.Value;
+
+            await RefreshStorage();
+            if (StorageMissing)
+            {
+                ConsoleQueueEnqueue($"The shared runtime's folder {StorageFolderText} isn't available. Is its drive connected? Reconnect it, or reset the location in App Settings > Storage.");
+                return;
+            }
             if (resume)
             {
                 CheckInputs(since); // the progress total: what's left
@@ -2109,6 +2119,147 @@ namespace MangaJaNaiConverterGui.ViewModels
         // 1.x's Python backend and default models, left in the settings folder after an upgrade the
         // installer's cleanup missed (LegacyCleanup). Installed copies on Windows only: 1.x had no
         // other builds, and a dev build's settings folder is its own.
+        // Engines built before they moved into the store's folder (BackendService.EngineCacheDirectory):
+        // moved over once, so they aren't built again.
+        public void MoveEngineCache()
+        {
+            var old = Path.Combine(_backendService.AppStateFolder, "engines");
+            var now = _backendService.EngineCacheDirectory;
+            if (string.Equals(Path.GetFullPath(old), Path.GetFullPath(now), StringComparison.OrdinalIgnoreCase) || !Directory.Exists(old))
+            {
+                return;
+            }
+            Task.Run(() =>
+            {
+                try
+                {
+                    Directory.CreateDirectory(now);
+                    foreach (var file in Directory.EnumerateFiles(old).ToList())
+                    {
+                        var dest = Path.Combine(now, Path.GetFileName(file));
+                        try
+                        {
+                            if (!File.Exists(dest))
+                            {
+                                File.Move(file, dest);
+                            }
+                        }
+                        catch
+                        {
+                        }
+                    }
+                    if (!Directory.EnumerateFileSystemEntries(old).Any())
+                    {
+                        Directory.Delete(old);
+                    }
+                }
+                catch
+                {
+                }
+            });
+        }
+
+        // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
+
+        private StoreLocation.Info? _storage;
+        public StoreLocation.Info? Storage
+        {
+            get => _storage;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _storage, value);
+                this.RaisePropertyChanged(nameof(ShowStorage));
+                this.RaisePropertyChanged(nameof(StorageFolderText));
+                this.RaisePropertyChanged(nameof(StorageMoved));
+                this.RaisePropertyChanged(nameof(StorageMissing));
+                this.RaisePropertyChanged(nameof(StorageText));
+            }
+        }
+
+        public bool ShowStorage => _updateManagerService.IsInstalled && Storage is not null;
+        public string StorageFolderText => Storage?.Folder ?? "";
+        public bool StorageMoved => Storage is { Moved: true, Available: true };
+        public bool StorageMissing => Storage is { Moved: true, Available: false };
+
+        public string StorageText => Storage switch
+        {
+            null => "",
+            { Moved: false } => "The TensorRT runtime and the models are in the default folder. All your JaNai apps share them.",
+            { Available: true } => $"Moved from {Storage.Root}, which now links here. All your JaNai apps share it.",
+            _ => "This folder isn't available. Is its drive connected? Until it is, upscaling can't start.",
+        };
+
+        private bool _storageBusy;
+        public bool StorageBusy
+        {
+            get => _storageBusy;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _storageBusy, value);
+                this.RaisePropertyChanged(nameof(AllowStorageChanges));
+            }
+        }
+
+        public bool AllowStorageChanges => !StorageBusy && AllowComponentChanges;
+
+        private string _storageStatusText = string.Empty;
+        public string StorageStatusText
+        {
+            get => _storageStatusText;
+            set => this.RaiseAndSetIfChanged(ref _storageStatusText, value);
+        }
+
+        public async Task RefreshStorage()
+        {
+            if (!_updateManagerService.IsInstalled)
+            {
+                return;
+            }
+            Storage = await StoreLocation.GetAsync();
+        }
+
+        // The store's size, for the move confirmation.
+        public long StorageBytes() => Storage is { } s ? StoreLocation.Size(s.Folder) : 0;
+
+        public Task MoveStorage(string folder) => ChangeStorage(["move", StoreLocation.MoveTarget(folder)], "Moving the shared runtime");
+
+        public Task MoveStorageBack() => ChangeStorage(["move", "--default"], "Moving the shared runtime back");
+
+        // Reset: the store's folder is gone, so the default folder starts empty and this app's
+        // components are installed again (the other apps reinstall theirs when they next need them).
+        public async Task ResetStorage()
+        {
+            await ChangeStorage(["reset"], "Resetting the storage location");
+            if (Storage is { Moved: false })
+            {
+                await CheckAndExtractBackend();
+            }
+        }
+
+        private async Task ChangeStorage(string[] args, string doing)
+        {
+            if (!AllowStorageChanges)
+            {
+                return;
+            }
+            StorageBusy = true;
+            ComponentsBusy = true; // no component installs meanwhile
+            StorageStatusText = $"{doing}...";
+            try
+            {
+                var error = await Task.Run(() => StoreLocation.ChangeAsync(args, (done, total) =>
+                    StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}..."));
+                StorageStatusText = error ?? "Done.";
+            }
+            catch (Exception ex)
+            {
+                StorageStatusText = ex.Message;
+            }
+            ComponentsBusy = false;
+            StorageBusy = false;
+            await RefreshStorage();
+        }
+
         public void RemoveLegacyFiles()
         {
             if (!OperatingSystem.IsWindows() || !_updateManagerService.IsInstalled)
