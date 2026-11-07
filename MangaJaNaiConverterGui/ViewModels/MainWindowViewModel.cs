@@ -1412,17 +1412,28 @@ namespace MangaJaNaiConverterGui.ViewModels
                     var existArchiveCount = 0;
                     var totalFileCount = 0;
 
+                    var images = CurrentWorkflow.UpscaleImages
+                        ? Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
+                            .Where(file => IMAGE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext))).ToList()
+                        : [];
+                    var archives = CurrentWorkflow.UpscaleArchives
+                        ? Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
+                            .Where(file => ARCHIVE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext))).ToList()
+                        : [];
+                    // Named together, as the run names them: outputs that would collide get unique names.
+                    var outputPaths = OutputNames.Assign(
+                        images.Select(f => (f, OutputDirectoryFor(f), CurrentWorkflow.ImageFormat))
+                            .Concat(archives.Select(f => (f, OutputDirectoryFor(f), "cbz")))
+                            .ToList(),
+                        CurrentWorkflow.OutputFilename);
+
                     if (CurrentWorkflow.UpscaleImages)
                     {
-                        var images = Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
-                            .Where(file => IMAGE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
                         var imagesCount = 0;
 
-                        foreach (var inputImagePath in images)
+                        for (var i = 0; i < images.Count; i++)
                         {
-                            var outputImagePath = Path.Join(
-                                                        OutputDirectoryFor(inputImagePath),
-                                                        CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputImagePath))) + $".{CurrentWorkflow.ImageFormat}";
+                            var outputImagePath = outputPaths[i];
                             // if out file exists, exist count ++
                             // if overwrite image OR out file doesn't exist, count image++
                             var fileExists = File.Exists(outputImagePath);
@@ -1446,15 +1457,11 @@ namespace MangaJaNaiConverterGui.ViewModels
                     }
                     if (CurrentWorkflow.UpscaleArchives)
                     {
-                        var archives = Directory.EnumerateFiles(CurrentWorkflow.InputFolderPath, "*.*", SearchOption.AllDirectories)
-                            .Where(file => ARCHIVE_EXTENSIONS.Any(ext => file.ToLower().EndsWith(ext)));
                         var archivesCount = 0;
 
-                        foreach (var inputArchivePath in archives)
+                        for (var i = 0; i < archives.Count; i++)
                         {
-                            var outputArchivePath = Path.Join(
-                                                            OutputDirectoryFor(inputArchivePath),
-                                                            CurrentWorkflow.OutputFilename.Replace("%filename%", Path.GetFileNameWithoutExtension(inputArchivePath))) + ".cbz";
+                            var outputArchivePath = outputPaths[images.Count + i];
                             var fileExists = File.Exists(outputArchivePath);
 
                             if (fileExists)

@@ -691,7 +691,7 @@
                   </Grid.ColumnDefinitions>
                   <ContentControl Classes="hint" Content="Output Filename">
                     <ToolTip.Tip>
-                      <TextBlock TextWrapping="Wrap">The filename of the upscaled image(s) or archive(s), without the file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. Archives will be output with .cbz extension; images will be output with the extension of the image format selected below.</TextBlock>
+                      <TextBlock TextWrapping="Wrap">The filename of the upscaled image(s) or archive(s), without the file extension. <Run FontFamily="Consolas">%filename%</Run> is the input filename without extension. Archives will be output with .cbz extension; images will be output with the extension of the image format selected below. Files that would get the same name also get their own name added, for example <Run FontFamily="Consolas">upscaled-Vol 1.cbz</Run>.</TextBlock>
                     </ToolTip.Tip>
                   </ContentControl>
                   <TextBox Grid.Column="1" Text="{Binding CurrentWorkflow.OutputFilename}" />
