@@ -297,7 +297,7 @@ namespace MangaJaNaiConverterGui.Tests
         {
             var chain = new UpscaleChain(new FakeBackendService([])) { ModelFilePath = "4x_IllustrationJaNai_V3detail_HAT_L_28k_bf16.onnx", IsColor = true, IsGrayscale = true };
             Assert.Equal("any resolution · color + grayscale → 4x IllustrationJaNai_V3detail_HAT_L (bf16)", chain.ChainSummary);
-            Assert.Equal("4x IllustrationJaNai_V3detail_HAT_L (bf16) · tile Auto (Estimate)", chain.UpscaleSummary);
+            Assert.Equal("4x IllustrationJaNai_V3detail_HAT_L (bf16) · tile Default (512)", chain.UpscaleSummary);
         }
 
         // ---- the shipped default settings ---------------------------------------------------------

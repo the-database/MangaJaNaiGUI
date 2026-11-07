@@ -618,8 +618,8 @@
                               </StackPanel>
                               <StackPanel Classes="row">
                                 <ContentControl Classes="hint" Content="Model Tile Size"
-                                                ToolTip.Tip="Tile size to use when upscaling images with the selected model. The image is cut into tiles in order to upscale without running into the VRAM limits of your GPU. Larger is better when the GPU has enough VRAM to support it. Auto uses 512, which suits most GPUs. With TensorRT, each tile size builds its own engine the first time it is used." />
-                                <ui:FAComboBox IsEditable="True" Width="160" MaxDropDownHeight="600" Text="{Binding ModelTileSize, Mode=TwoWay}"
+                                                ToolTip.Tip="Tile size to use when upscaling images with the selected model. The image is cut into tiles in order to upscale without running into the VRAM limits of your GPU. Larger is better when the GPU has enough VRAM to support it. Default uses 512, which suits most GPUs. With TensorRT, each tile size builds its own engine the first time it is used." />
+                                <ui:FAComboBox IsEditable="True" Width="160" MaxDropDownHeight="600" Text="{Binding ModelTileSizeLabel, Mode=TwoWay}"
                                                ItemsSource="{Binding TileSizes}" />
                                 <TextBlock Margin="5,0,0,0">px</TextBlock>
                               </StackPanel>
