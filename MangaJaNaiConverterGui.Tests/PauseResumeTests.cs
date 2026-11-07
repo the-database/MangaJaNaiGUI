@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Avalonia.Headless.XUnit;
@@ -13,43 +12,6 @@ namespace MangaJaNaiConverterGui.Tests
 {
     public class PauseResumeTests
     {
-        // A child process that runs for a while: what the backend is while upscaling.
-        private static Process Sleeper() => Process.Start(OperatingSystem.IsWindows()
-            ? new ProcessStartInfo("cmd.exe", "/c ping -n 30 127.0.0.1") { CreateNoWindow = true, RedirectStandardOutput = true }
-            : new ProcessStartInfo("sleep", "30"))!;
-
-        private static bool IsSuspended(Process p)
-        {
-            p.Refresh();
-            if (OperatingSystem.IsWindows())
-            {
-                return p.Threads.Cast<ProcessThread>().All(t => t.ThreadState == System.Diagnostics.ThreadState.Wait && t.WaitReason == ThreadWaitReason.Suspended);
-            }
-            // /proc/<pid>/stat: the state follows the command name in parentheses; T is stopped.
-            var stat = File.ReadAllText($"/proc/{p.Id}/stat");
-            return stat[(stat.LastIndexOf(')') + 2)..].StartsWith('T');
-        }
-
-        [Fact]
-        public void APausedProcessIsFrozenUntilResumed()
-        {
-            using var p = Sleeper();
-            try
-            {
-                Assert.True(ProcessControl.Suspend(p));
-                Assert.True(IsSuspended(p));
-                Assert.True(ProcessControl.Resume(p));
-                Assert.False(IsSuspended(p));
-                Assert.True(ProcessControl.Suspend(p), "a paused upscale can still be canceled");
-            }
-            finally
-            {
-                p.Kill(true);
-                p.WaitForExit();
-            }
-            Assert.False(ProcessControl.Resume(p), "an ended process can't be resumed");
-        }
-
         static (MainWindowViewModel Vm, UpscaleWorkflow Workflow, string Output) FolderRun(bool overwrite)
         {
             var root = Path.Combine(Path.GetTempPath(), "mangajanai-continue-" + Guid.NewGuid().ToString("N"));
@@ -136,15 +98,20 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.False(vm.ContinueEnabled, "a single file instead of the folder");
         }
 
+        // A pause during an engine build waits for the build (the CLI checks between images), so it's
+        // offered for the whole run. The status says when the GPU memory is actually free.
         [AvaloniaFact]
-        public void PauseIsNotOfferedWhileAnEngineBuilds()
+        public void PauseIsOfferedWhileUpscalingAndSaysWhenTheGpuIsFree()
         {
             var (vm, _, _) = FolderRun(overwrite: true);
             Assert.False(vm.PauseEnabled, "nothing running");
             vm.Upscaling = true;
-            Assert.True(vm.PauseEnabled);
             vm.EngineStatusText = "Building the TensorRT engine for x (a few minutes, once per model)...";
-            Assert.False(vm.PauseEnabled);
+            Assert.True(vm.PauseEnabled);
+            vm.Paused = true;
+            Assert.StartsWith("Pausing", vm.LeftStatus);
+            vm.PauseReleased = true;
+            Assert.Contains("GPU memory is free", vm.LeftStatus);
         }
 
         // The interrupted run survives a restart: it's saved with the app state.
