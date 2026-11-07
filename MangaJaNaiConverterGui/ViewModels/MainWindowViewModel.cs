@@ -450,7 +450,7 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         // Each tile size is its own TensorRT engine (built once per model on first use), so only a few.
         private string[] _tileSizes = [
-            "Auto (Estimate)",
+            UpscaleChain.DefaultTileLabel,
             "256",
             "384",
             "512",
@@ -3277,7 +3277,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         {
             get
             {
-                var parts = new List<string> { ShortModelName(ModelFilePath), $"tile {ModelTileSize}" };
+                var parts = new List<string> { ShortModelName(ModelFilePath), $"tile {TileLabel(ModelTileSize)}" };
                 if (ResizeHeightBeforeUpscale > 0)
                 {
                     parts.Add($"resize to {ResizeHeightBeforeUpscale}px tall first");
@@ -3481,13 +3481,32 @@ namespace MangaJaNaiConverterGui.ViewModels
         // are still only resized, so say so.
         public bool MissingModel => string.IsNullOrWhiteSpace(ModelFilePath);
 
-        private string _modelTileSize = "Auto (Estimate)";
+        // The saved value for the default tile size stays "Auto (Estimate)": saved settings, exported
+        // workflows (.mwf) and MangaJaNaiCLI (chain::tile_size) all use it. Only the text shown says
+        // what it does today: a 512 px tile on every GPU.
+        public const string DefaultTile = "Auto (Estimate)";
+        public const string DefaultTileLabel = "Default (512)";
+
+        private string _modelTileSize = DefaultTile;
         [DataMember]
         public string ModelTileSize
         {
             get => _modelTileSize;
-            set => this.RaiseAndSetIfChanged(ref _modelTileSize, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _modelTileSize, value);
+                this.RaisePropertyChanged(nameof(ModelTileSizeLabel));
+            }
         }
+
+        // The tile size box's text: ModelTileSize with the default shown as DefaultTileLabel.
+        public string ModelTileSizeLabel
+        {
+            get => TileLabel(ModelTileSize);
+            set => ModelTileSize = value?.Trim() == DefaultTileLabel ? DefaultTile : value ?? DefaultTile;
+        }
+
+        public static string TileLabel(string tile) => tile == DefaultTile ? DefaultTileLabel : tile;
 
         private bool _autoAdjustLevels = false;
         [DataMember]
