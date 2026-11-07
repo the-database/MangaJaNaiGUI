@@ -101,16 +101,39 @@ namespace MangaJaNaiConverterGui.Tests
         [AvaloniaFact]
         public void ContinueIsOfferedForTheWorkflowThatWasInterrupted()
         {
-            var (vm, _, _) = FolderRun(overwrite: true);
+            var (vm, workflow, _) = FolderRun(overwrite: true);
             Assert.False(vm.ContinueEnabled);
             vm.InterruptedRunSince = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             vm.InterruptedRunWorkflow = 0;
+            vm.InterruptedRunJob = MainWindowViewModel.JobOf(workflow);
             Assert.True(vm.ContinueEnabled);
             vm.InterruptedRunWorkflow = 1;
             Assert.False(vm.ContinueEnabled, "another workflow's run");
             vm.InterruptedRunWorkflow = 0;
             vm.Upscaling = true;
             Assert.False(vm.ContinueEnabled, "not while upscaling");
+        }
+
+        // Continue goes away once the workflow is set up for a different job.
+        [AvaloniaFact]
+        public void ContinueGoesAwayForADifferentJob()
+        {
+            var (vm, workflow, output) = FolderRun(overwrite: true);
+            vm.InterruptedRunSince = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            vm.InterruptedRunJob = MainWindowViewModel.JobOf(workflow);
+            Assert.True(vm.ContinueEnabled);
+
+            var input = workflow.InputFolderPath;
+            workflow.InputFolderPath = Directory.CreateDirectory(Path.Combine(output, "..", "other")).FullName;
+            Assert.False(vm.ContinueEnabled, "another input folder");
+            workflow.InputFolderPath = input + Path.DirectorySeparatorChar;
+            Assert.True(vm.ContinueEnabled, "the same folder, written differently");
+
+            workflow.OutputFolderPath = Path.Combine(output, "elsewhere");
+            Assert.False(vm.ContinueEnabled, "another output folder");
+            workflow.OutputFolderPath = output;
+            workflow.SelectedTabIndex = 0;
+            Assert.False(vm.ContinueEnabled, "a single file instead of the folder");
         }
 
         [AvaloniaFact]
@@ -128,11 +151,12 @@ namespace MangaJaNaiConverterGui.Tests
         [Fact]
         public void TheInterruptedRunIsSaved()
         {
-            var vm = new MainWindowViewModel(new FakeBackendService([])) { InterruptedRunSince = 1762500000, InterruptedRunWorkflow = 2 };
+            var vm = new MainWindowViewModel(new FakeBackendService([])) { InterruptedRunSince = 1762500000, InterruptedRunWorkflow = 2, InterruptedRunJob = "folder:c:\\in\nc:\\out" };
             var json = JsonConvert.SerializeObject(vm, NewtonsoftJsonSuspensionDriver.Settings);
             var back = JsonConvert.DeserializeObject<MainWindowViewModel>(json, NewtonsoftJsonSuspensionDriver.Settings)!;
             Assert.Equal(1762500000, back.InterruptedRunSince);
             Assert.Equal(2, back.InterruptedRunWorkflow);
+            Assert.Equal("folder:c:\\in\nc:\\out", back.InterruptedRunJob);
         }
     }
 }
