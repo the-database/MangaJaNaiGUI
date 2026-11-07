@@ -225,7 +225,7 @@
               </StackPanel>
             </Button>
             <Button Margin="20,10,0,10" FontWeight="Bold" IsEnabled="{Binding PauseEnabled}" Command="{Binding TogglePause}"
-                    ToolTip.Tip="Pause the upscale and resume it later. While paused it keeps its GPU memory. Not available while a TensorRT engine is being built.">
+                    ToolTip.Tip="Pause the upscale and resume it later. Once the image in progress is done, the models are unloaded, which frees the GPU memory; Resume loads them again in a few seconds.">
               <StackPanel Orientation="Horizontal">
                 <materialIcons:MaterialIcon Kind="PauseCircle" IsVisible="{Binding !Paused}" />
                 <materialIcons:MaterialIcon Kind="PlayCircle" IsVisible="{Binding Paused}" />
