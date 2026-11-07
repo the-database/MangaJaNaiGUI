@@ -128,6 +128,7 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // yosh's crates/mangajanai-cli, released there on mangajanai-cli-v* tags), built on yosh-image +
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
+// v0.5.0 writes JPEG XL (JxlSelected in the settings), which the GUI's JPEG XL format needs.
 // v0.2.0: images with uniform transparency are upscaled once instead of twice, varying transparency gets
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
 // --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
