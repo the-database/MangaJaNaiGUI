@@ -1130,7 +1130,34 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        public bool ContinueEnabled => !Upscaling && CurrentWorkflow?.Valid == true && InterruptedRunSince != null && InterruptedRunWorkflow == SelectedWorkflowIndex;
+        // What the interrupted run upscaled: its input (file or folder) and output folder. Continue
+        // shows only while the workflow still points there, so it goes away once the user sets up a
+        // different job.
+        private string _interruptedRunJob = string.Empty;
+        [DataMember]
+        public string InterruptedRunJob
+        {
+            get => _interruptedRunJob;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _interruptedRunJob, value);
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
+            }
+        }
+
+        public static string JobOf(UpscaleWorkflow w)
+        {
+            static string Full(string p)
+            {
+                try { return string.IsNullOrEmpty(p) ? "" : Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)); } catch { return p; }
+            }
+            var input = w.SelectedTabIndex == 0 ? $"file:{Full(w.InputFilePath)}" : $"folder:{Full(w.InputFolderPath)}";
+            var job = $"{input}\n{Full(w.OutputFolderPath)}";
+            return OperatingSystem.IsWindows() ? job.ToLowerInvariant() : job;
+        }
+
+        public bool ContinueEnabled => !Upscaling && CurrentWorkflow?.Valid == true && InterruptedRunSince != null &&
+            InterruptedRunWorkflow == SelectedWorkflowIndex && InterruptedRunJob == JobOf(CurrentWorkflow);
 
         public Task ContinueUpscale() => Upscale(resume: true);
 
@@ -1330,10 +1357,11 @@ namespace MangaJaNaiConverterGui.ViewModels
 
             // A fresh run starts the clock for Continue; continuing keeps the first run's start, so
             // files saved by every attempt so far are kept.
-            if (!resume || InterruptedRunSince == null || InterruptedRunWorkflow != SelectedWorkflowIndex)
+            if (!resume || !ContinueEnabled)
             {
                 InterruptedRunSince = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 InterruptedRunWorkflow = SelectedWorkflowIndex;
+                InterruptedRunJob = JobOf(CurrentWorkflow);
             }
             var since = InterruptedRunSince.Value;
             if (resume)
