@@ -19,6 +19,9 @@ rm -f "$APPS/mangajanai-gui.desktop"
 rm -f "$ICONS/mangajanai-gui.png"
 update-desktop-database "$APPS" 2>/dev/null || true
 
+# The engine cache in the shared pack store's folder (only this app's subfolder).
+rm -rf "${AJI_RUNTIME_STORE:-${XDG_DATA_HOME:-$HOME/.local/share}/the-database/aji}/engines/mangajanai-gui"
+
 echo "Removed the launcher symlink and the menu entry."
 echo "Delete this folder to remove MangaJaNai GUI itself; settings, your models and cached"
 echo "engines in ${XDG_CONFIG_HOME:-$HOME/.config}/MangaJaNaiConverterGui remain."
