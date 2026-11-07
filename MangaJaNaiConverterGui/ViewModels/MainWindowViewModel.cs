@@ -1022,7 +1022,8 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
 
         public string LeftStatus =>
-            Paused ? "Paused. Resume to continue the upscale, or cancel it." :
+            Paused && PauseReleased ? "Paused: the GPU memory is free. Resume to continue the upscale, or cancel it." :
+            Paused ? "Pausing once the image in progress is done..." :
             !string.IsNullOrEmpty(EngineStatusText) ? EngineStatusText :
             !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
@@ -1063,8 +1064,9 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         public bool UpscaleEnabled => CurrentWorkflow.Valid && !Upscaling;
 
-        // Pause: the backend process is frozen (ProcessControl) and the clock stops. Not while a
-        // TensorRT engine builds: that runs in a child process, which would keep going.
+        // Pause: the CLI (--control stdin) finishes the image it's on, then unloads its models, which
+        // frees the GPU memory, and says PAUSED; Resume loads them again from the engine cache. The
+        // clock stops meanwhile. A pause during an engine build takes effect once the build is done.
         private bool _paused;
         public bool Paused
         {
@@ -1077,7 +1079,19 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        public bool PauseEnabled => Upscaling && (Paused || string.IsNullOrEmpty(EngineStatusText));
+        // The CLI said PAUSED: its models are unloaded.
+        private bool _pauseReleased;
+        public bool PauseReleased
+        {
+            get => _pauseReleased;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _pauseReleased, value);
+                this.RaisePropertyChanged(nameof(LeftStatus));
+            }
+        }
+
+        public bool PauseEnabled => Upscaling;
 
         public void TogglePause()
         {
@@ -1085,17 +1099,24 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 return;
             }
+            try
+            {
+                process.StandardInput.WriteLine(Paused ? "RESUME" : "PAUSE");
+                process.StandardInput.Flush();
+            }
+            catch
+            {
+                return; // the run just ended
+            }
             if (Paused)
             {
-                if (ProcessControl.Resume(process))
-                {
-                    Paused = false;
-                    _archiveEtaCalculator.Reset();
-                    _totalEtaCalculator.Reset();
-                    _timer.Start();
-                }
+                Paused = false;
+                PauseReleased = false;
+                _archiveEtaCalculator.Reset();
+                _totalEtaCalculator.Reset();
+                _timer.Start();
             }
-            else if (PauseEnabled && ProcessControl.Suspend(process))
+            else
             {
                 Paused = true;
                 _timer.Stop();
@@ -1426,6 +1447,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     args.AddRange(["--skip-written-since", since.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
                 }
+                args.AddRange(["--control", "stdin"]); // Pause
                 ConsoleQueueEnqueue($"Upscaling with: {_backendService.BackendExePath} {string.Join(' ', args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}");
                 var exitCode = await RunCommand(args);
 
@@ -1457,6 +1479,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 _timer.Stop();
                 _cancellationTokenSource.Dispose();
                 Paused = false;
+                PauseReleased = false;
                 Upscaling = false;
             }
         }
@@ -1473,6 +1496,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                     _runningProcess = null; // Clear the reference to the terminated process
                 }
                 Paused = false;
+                PauseReleased = false;
                 CurrentWorkflow.Validate();
             }
             catch { }
@@ -1697,6 +1721,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     process.StartInfo.ArgumentList.Add(a);
                 }
+                process.StartInfo.RedirectStandardInput = true; // PAUSE / RESUME
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
                 process.StartInfo.UseShellExecute = false;
@@ -1775,6 +1800,10 @@ namespace MangaJaNaiConverterGui.ViewModels
                                 else if (e.Data.StartsWith("ENGINE_READY "))
                                 {
                                     EngineStatusText = string.Empty;
+                                }
+                                else if (e.Data == "PAUSED")
+                                {
+                                    PauseReleased = true;
                                 }
                                 outputFile.WriteLine(e.Data); // Write the output to the log file
                                 ConsoleQueueEnqueue(e.Data);
@@ -2107,6 +2136,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     BackendSetupSubStatusQueueEnqueue(ex.Message);
                 }
+                await Task.Run(MoveEngineCacheFiles); // the install may use the store now
             }
             LastRunVersion = version;
 
@@ -2120,8 +2150,12 @@ namespace MangaJaNaiConverterGui.ViewModels
         // installer's cleanup missed (LegacyCleanup). Installed copies on Windows only: 1.x had no
         // other builds, and a dev build's settings folder is its own.
         // Engines built before they moved into the store's folder (BackendService.EngineCacheDirectory):
-        // moved over once, so they aren't built again.
-        public void MoveEngineCache()
+        // moved over once, so they aren't built again. At startup, and again right after the
+        // first-launch component setup, which is when an install from before the store starts using
+        // it (and so when the engines' place changes).
+        public void MoveEngineCache() => Task.Run(MoveEngineCacheFiles);
+
+        public void MoveEngineCacheFiles()
         {
             var old = Path.Combine(_backendService.AppStateFolder, "engines");
             var now = _backendService.EngineCacheDirectory;
@@ -2129,7 +2163,6 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 return;
             }
-            Task.Run(() =>
             {
                 try
                 {
@@ -2156,7 +2189,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 catch
                 {
                 }
-            });
+            }
         }
 
         // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
