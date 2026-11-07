@@ -2136,6 +2136,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     BackendSetupSubStatusQueueEnqueue(ex.Message);
                 }
+                await Task.Run(MoveEngineCacheFiles); // the install may use the store now
             }
             LastRunVersion = version;
 
@@ -2149,8 +2150,12 @@ namespace MangaJaNaiConverterGui.ViewModels
         // installer's cleanup missed (LegacyCleanup). Installed copies on Windows only: 1.x had no
         // other builds, and a dev build's settings folder is its own.
         // Engines built before they moved into the store's folder (BackendService.EngineCacheDirectory):
-        // moved over once, so they aren't built again.
-        public void MoveEngineCache()
+        // moved over once, so they aren't built again. At startup, and again right after the
+        // first-launch component setup, which is when an install from before the store starts using
+        // it (and so when the engines' place changes).
+        public void MoveEngineCache() => Task.Run(MoveEngineCacheFiles);
+
+        public void MoveEngineCacheFiles()
         {
             var old = Path.Combine(_backendService.AppStateFolder, "engines");
             var now = _backendService.EngineCacheDirectory;
@@ -2158,7 +2163,6 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 return;
             }
-            Task.Run(() =>
             {
                 try
                 {
@@ -2185,7 +2189,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 catch
                 {
                 }
-            });
+            }
         }
 
         // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
