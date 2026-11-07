@@ -217,6 +217,22 @@
               </StackPanel>
 
             </Button>
+            <Button Margin="20,10,0,10" FontWeight="Bold" IsVisible="{Binding ContinueEnabled}" Command="{Binding ContinueUpscale}"
+                    ToolTip.Tip="Continue this workflow's last upscale, which didn't finish: files it already saved are kept, even when overwriting.">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="SkipNextCircle" />
+                <TextBlock Margin="5,0,0,0">Continue</TextBlock>
+              </StackPanel>
+            </Button>
+            <Button Margin="20,10,0,10" FontWeight="Bold" IsEnabled="{Binding PauseEnabled}" Command="{Binding TogglePause}"
+                    ToolTip.Tip="Pause the upscale and resume it later. While paused it keeps its GPU memory. Not available while a TensorRT engine is being built.">
+              <StackPanel Orientation="Horizontal">
+                <materialIcons:MaterialIcon Kind="PauseCircle" IsVisible="{Binding !Paused}" />
+                <materialIcons:MaterialIcon Kind="PlayCircle" IsVisible="{Binding Paused}" />
+                <TextBlock Margin="5,0,0,0" IsVisible="{Binding !Paused}">Pause</TextBlock>
+                <TextBlock Margin="5,0,0,0" IsVisible="{Binding Paused}">Resume</TextBlock>
+              </StackPanel>
+            </Button>
             <Button Margin="20,10,0,10" FontWeight="Bold" Background="Red" IsEnabled="{Binding Upscaling}" Command="{Binding CancelUpscale}">
               <StackPanel Orientation="Horizontal">
                 <materialIcons:MaterialIcon Kind="StopCircle" />

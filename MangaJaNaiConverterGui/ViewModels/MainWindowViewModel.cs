@@ -911,6 +911,8 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaisePropertyChanged(nameof(UpscaleEnabled));
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowComponentChanges));
+                this.RaisePropertyChanged(nameof(PauseEnabled));
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
             }
         }
 
@@ -1019,6 +1021,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
 
         public string LeftStatus =>
+            Paused ? "Paused. Resume to continue the upscale, or cancel it." :
             !string.IsNullOrEmpty(EngineStatusText) ? EngineStatusText :
             !CurrentWorkflow.Valid ? ValidationText.Replace("\n", " ") : $"{InputStatusText} selected for upscaling.";
 
@@ -1059,6 +1062,105 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         public bool UpscaleEnabled => CurrentWorkflow.Valid && !Upscaling;
 
+        // Pause: the backend process is frozen (ProcessControl) and the clock stops. Not while a
+        // TensorRT engine builds: that runs in a child process, which would keep going.
+        private bool _paused;
+        public bool Paused
+        {
+            get => _paused;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _paused, value);
+                this.RaisePropertyChanged(nameof(PauseEnabled));
+                this.RaisePropertyChanged(nameof(LeftStatus));
+            }
+        }
+
+        public bool PauseEnabled => Upscaling && (Paused || string.IsNullOrEmpty(EngineStatusText));
+
+        public void TogglePause()
+        {
+            if (_runningProcess is not Process process || !Upscaling)
+            {
+                return;
+            }
+            if (Paused)
+            {
+                if (ProcessControl.Resume(process))
+                {
+                    Paused = false;
+                    _archiveEtaCalculator.Reset();
+                    _totalEtaCalculator.Reset();
+                    _timer.Start();
+                }
+            }
+            else if (PauseEnabled && ProcessControl.Suspend(process))
+            {
+                Paused = true;
+                _timer.Stop();
+            }
+        }
+
+        // An upscale that didn't finish (canceled, the app closed, a crash): when it started (Unix
+        // seconds) and which workflow it was. Set when a run starts and cleared when one finishes, so
+        // Continue can run it again keeping the files it already saved, even when overwriting
+        // (the CLI's --skip-written-since). Kept here rather than in the workflow, so exported
+        // workflows don't carry it.
+        private long? _interruptedRunSince;
+        [DataMember]
+        public long? InterruptedRunSince
+        {
+            get => _interruptedRunSince;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _interruptedRunSince, value);
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
+            }
+        }
+
+        private int _interruptedRunWorkflow;
+        [DataMember]
+        public int InterruptedRunWorkflow
+        {
+            get => _interruptedRunWorkflow;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _interruptedRunWorkflow, value);
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
+            }
+        }
+
+        // What the interrupted run upscaled: its input (file or folder) and output folder. Continue
+        // shows only while the workflow still points there, so it goes away once the user sets up a
+        // different job.
+        private string _interruptedRunJob = string.Empty;
+        [DataMember]
+        public string InterruptedRunJob
+        {
+            get => _interruptedRunJob;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _interruptedRunJob, value);
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
+            }
+        }
+
+        public static string JobOf(UpscaleWorkflow w)
+        {
+            static string Full(string p)
+            {
+                try { return string.IsNullOrEmpty(p) ? "" : Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)); } catch { return p; }
+            }
+            var input = w.SelectedTabIndex == 0 ? $"file:{Full(w.InputFilePath)}" : $"folder:{Full(w.InputFolderPath)}";
+            var job = $"{input}\n{Full(w.OutputFolderPath)}";
+            return OperatingSystem.IsWindows() ? job.ToLowerInvariant() : job;
+        }
+
+        public bool ContinueEnabled => !Upscaling && CurrentWorkflow?.Valid == true && InterruptedRunSince != null &&
+            InterruptedRunWorkflow == SelectedWorkflowIndex && InterruptedRunJob == JobOf(CurrentWorkflow);
+
+        public Task ContinueUpscale() => Upscale(resume: true);
+
         private TimeSpan _elapsedTime = TimeSpan.FromSeconds(0);
         public TimeSpan ElapsedTime
         {
@@ -1089,6 +1191,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaiseAndSetIfChanged(ref _selectedWorkflowIndex, value);
                 this.RaisePropertyChanged(nameof(CurrentWorkflow));
                 this.RaisePropertyChanged(nameof(CurrentWorkflow.ActiveWorkflow));
+                this.RaisePropertyChanged(nameof(ContinueEnabled));
             }
         }
 
@@ -1245,10 +1348,26 @@ namespace MangaJaNaiConverterGui.ViewModels
 
 
 
-        public async Task RunUpscale()
+        public Task RunUpscale() => Upscale(resume: false);
+
+        private async Task Upscale(bool resume)
         {
             _cancellationTokenSource = new CancellationTokenSource();
             var ct = _cancellationTokenSource.Token;
+
+            // A fresh run starts the clock for Continue; continuing keeps the first run's start, so
+            // files saved by every attempt so far are kept.
+            if (!resume || !ContinueEnabled)
+            {
+                InterruptedRunSince = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                InterruptedRunWorkflow = SelectedWorkflowIndex;
+                InterruptedRunJob = JobOf(CurrentWorkflow);
+            }
+            var since = InterruptedRunSince.Value;
+            if (resume)
+            {
+                CheckInputs(since); // the progress total: what's left
+            }
 
             var task = Task.Run(async () =>
             {
@@ -1293,8 +1412,19 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     args.AddRange(["--device", SelectedDeviceId]);
                 }
+                if (resume)
+                {
+                    args.AddRange(["--skip-written-since", since.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+                }
                 ConsoleQueueEnqueue($"Upscaling with: {_backendService.BackendExePath} {string.Join(' ', args.Select(a => a.Contains(' ') ? $"\"{a}\"" : a))}");
-                await RunCommand(args);
+                var exitCode = await RunCommand(args);
+
+                // Finished on its own: nothing left to continue. Canceled or failed: Continue stays.
+                if (!ct.IsCancellationRequested && exitCode == 0)
+                {
+                    InterruptedRunSince = null;
+                    _suspensionDriverService.SuspensionDriver.SaveState(this);
+                }
 
                 CurrentWorkflow.Valid = true;
             }, ct);
@@ -1316,6 +1446,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 _timer.Stop();
                 _cancellationTokenSource.Dispose();
+                Paused = false;
                 Upscaling = false;
             }
         }
@@ -1327,21 +1458,26 @@ namespace MangaJaNaiConverterGui.ViewModels
                 _cancellationTokenSource?.Cancel();
                 if (_runningProcess != null && !_runningProcess.HasExited)
                 {
-                    // Kill the process
+                    // Kill the process (a paused one too: it ends as it is)
                     _runningProcess.Kill(true);
                     _runningProcess = null; // Clear the reference to the terminated process
                 }
+                Paused = false;
                 CurrentWorkflow.Validate();
             }
             catch { }
         }
 
 
-        public void CheckInputs()
+        // keepSince: count for Continue, which also keeps outputs written since then (Unix seconds).
+        public void CheckInputs(long? keepSince = null)
         {
             if (CurrentWorkflow.Valid && !Upscaling)
             {
                 var overwriteText = CurrentWorkflow.OverwriteExistingFiles ? "overwritten" : "skipped";
+                // Whether the run writes this output, as the CLI decides it.
+                bool Redo(string path) => !File.Exists(path) || (CurrentWorkflow.OverwriteExistingFiles &&
+                    !(keepSince is long since && new DateTimeOffset(File.GetLastWriteTimeUtc(path)).ToUnixTimeMilliseconds() >= since * 1000));
 
                 // input file
                 if (CurrentWorkflow.SelectedTabIndex == 0)
@@ -1359,7 +1495,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                         if (File.Exists(outputFilePath))
                         {
                             status.Append($" (1 image already exists and will be {overwriteText})");
-                            if (!CurrentWorkflow.OverwriteExistingFiles)
+                            if (!Redo(outputFilePath))
                             {
                                 skipFiles++;
                             }
@@ -1373,7 +1509,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                         if (File.Exists(outputFilePath))
                         {
                             status.Append($" (1 archive already exists and will be {overwriteText})");
-                            if (!CurrentWorkflow.OverwriteExistingFiles)
+                            if (!Redo(outputFilePath))
                             {
                                 skipFiles++;
                             }
@@ -1443,7 +1579,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                                 existImageCount++;
                             }
 
-                            if (!fileExists || CurrentWorkflow.OverwriteExistingFiles)
+                            if (Redo(outputImagePath))
                             {
                                 imagesCount++;
                             }
@@ -1469,7 +1605,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                                 existArchiveCount++;
                             }
 
-                            if (!fileExists || CurrentWorkflow.OverwriteExistingFiles)
+                            if (Redo(outputArchivePath))
                             {
                                 archivesCount++;
                             }
@@ -1541,7 +1677,7 @@ namespace MangaJaNaiConverterGui.ViewModels
 
 
 
-        public async Task RunCommand(IEnumerable<string> arguments)
+        public async Task<int> RunCommand(IEnumerable<string> arguments)
         {
             using (var process = new Process())
             {
@@ -1642,6 +1778,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                     process.BeginErrorReadLine(); // Start asynchronous reading of the output
                     await process.WaitForExitAsync();
                     EngineStatusText = string.Empty;
+                    return process.ExitCode;
                 }
 
             }
@@ -1685,6 +1822,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _engineStatusText, value);
                 this.RaisePropertyChanged(nameof(LeftStatus));
+                this.RaisePropertyChanged(nameof(PauseEnabled));
             }
         }
 
@@ -2989,6 +3127,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 {
                     Vm.RaisePropertyChanged(nameof(Vm.UpscaleEnabled));  // TODO
                     Vm.RaisePropertyChanged(nameof(Vm.LeftStatus));  // TODO
+                    Vm.RaisePropertyChanged(nameof(Vm.ContinueEnabled));
                 }
             }
         }

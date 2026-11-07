@@ -128,19 +128,20 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // yosh's crates/mangajanai-cli, released there on mangajanai-cli-v* tags), built on yosh-image +
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
+// v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
 // v0.5.0 writes JPEG XL (JxlSelected in the settings), which the GUI's JPEG XL format needs.
 // v0.2.0: images with uniform transparency are upscaled once instead of twice, varying transparency gets
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
 // --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
 // it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
-const string CliVersion        = "v0.5.0";
+const string CliVersion        = "v0.6.1";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
-const string CliSha256         = "3ae536fbfc8f9482f36907719ba65e662ec478acdf704ed84cb4a0b6575131b4";
+const string CliSha256         = "5fcf6e2e59f50011fb307dfd3925a6ea923a5c474e17bec0f570d3d8ed40561e";
 // Linux: the release's mangajanai-linux-x64.tar.zst. Its `mangajanai` is the same program as
 // mangajanai_upscale (one binary under two names, the GUI's --settings interface included), so it ships
 // as inference/mangajanai_upscale. The libaji it carries is left out: InstallAji supplies the same one.
 const string CliAssetLinux     = "mangajanai-linux-x64.tar.zst";
-const string CliSha256Linux    = "875739cce7ee2b13dbb06982672e9b76f0bfd3d17975fc1fd90b43d08baab868";
+const string CliSha256Linux    = "10054d12d05386e10cfe46afd675ec97205614ee69b7ae4bb53034e2a7b4af82";
 
 // The default ONNX models, published as archives on each model's MangaJaNai release, one archive per
 // component pack. Every file is named <checkpoint>_<precision of the ONNX itself> (fp16, bf16 or fp32),
