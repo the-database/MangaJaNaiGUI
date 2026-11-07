@@ -2106,6 +2106,26 @@ namespace MangaJaNaiConverterGui.ViewModels
             CurrentWorkflow?.Validate();
         }
 
+        // 1.x's Python backend and default models, left in the settings folder after an upgrade the
+        // installer's cleanup missed (LegacyCleanup). Installed copies on Windows only: 1.x had no
+        // other builds, and a dev build's settings folder is its own.
+        public void RemoveLegacyFiles()
+        {
+            if (!OperatingSystem.IsWindows() || !_updateManagerService.IsInstalled)
+            {
+                return;
+            }
+            var folder = _backendService.AppStateFolder;
+            Task.Run(() =>
+            {
+                var freed = LegacyCleanup.Run(folder);
+                if (freed > 0)
+                {
+                    ConsoleQueueEnqueue($"Removed the files MangaJaNai GUI 1.x left behind (its Python backend and default models): {freed / 1e9:0.0} GB freed.");
+                }
+            });
+        }
+
         public void CheckAndDoBackup()
         {
             Task.Run(() =>
