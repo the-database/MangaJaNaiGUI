@@ -397,7 +397,7 @@
                     <StackPanel Classes="row">
                       <CheckBox Margin="0,0,10,0" IsChecked="{Binding CurrentWorkflow.UpscaleArchives}">Upscale Archives</CheckBox>
                       <ContentControl Classes="hint"
-                                      ToolTip.Tip="Whether to upscale Image files (*.png, *.jpg, *.jpeg, *.webp, *.bmp, *.avif) and/or Archive files (*.zip, *.cbz, *.rar, *.cbr) in the selected Input Folder.">
+                                      ToolTip.Tip="Whether to upscale Image files (*.png, *.jpg, *.jpeg, *.webp, *.bmp, *.avif, *.tif, *.tiff, *.jxl) and/or Archive files (*.zip, *.cbz, *.rar, *.cbr, *.7z, *.cb7) in the selected Input Folder.">
                         <CheckBox IsChecked="{Binding CurrentWorkflow.UpscaleImages}">Upscale Images</CheckBox>
                       </ContentControl>
                     </StackPanel>
@@ -708,6 +708,7 @@
                       <StackPanel Spacing="6">
                         <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>WebP</Bold>: Modern format recommended for good quality and efficient filesize compression, with good compatibility on modern devices. Supports lossless and lossy compression.</TextBlock>
                         <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>AVIF</Bold>: Modern format with better lossy compression efficiency than WebP, but not as widely supported and slower to save and load compared to WebP.</TextBlock>
+                        <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>JPEG XL</Bold>: Modern format with smaller files than WebP at the same quality, lossy or lossless. Slower to save than WebP, and not yet supported by many readers and apps.</TextBlock>
                         <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>PNG</Bold>: Lossless compressed format with excellent compatibility, but worse compression efficiency than WebP and AVIF.</TextBlock>
                         <TextBlock TextWrapping="Wrap" xml:space="preserve"><Bold>JPEG</Bold>: Lossy compressed format with excellent compatibility, but worse compression efficiency than WebP and AVIF.</TextBlock>
                       </StackPanel>
@@ -715,6 +716,7 @@
                   </ContentControl>
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.WebpSelected}" Content="WebP" Command="{Binding CurrentWorkflow.SetWebpSelected}" />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.AvifSelected}" Content="AVIF" Command="{Binding CurrentWorkflow.SetAvifSelected}" />
+                  <ToggleButton IsChecked="{Binding CurrentWorkflow.JxlSelected}" Content="JPEG XL" Command="{Binding CurrentWorkflow.SetJxlSelected}" />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.PngSelected}" Content="PNG" Command="{Binding CurrentWorkflow.SetPngSelected}" />
                   <ToggleButton IsChecked="{Binding CurrentWorkflow.JpegSelected}" Content="JPEG" Command="{Binding CurrentWorkflow.SetJpegSelected}" />
                 </StackPanel>

@@ -29,8 +29,10 @@ namespace MangaJaNaiConverterGui.ViewModels
     [DataContract]
     public class MainWindowViewModel : ViewModelBase
     {
-        public static readonly List<string> IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".avif"];
-        public static readonly List<string> ARCHIVE_EXTENSIONS = [".zip", ".cbz", ".rar", ".cbr"];
+        // What the CLI upscales from a folder or as a single file (MangaJaNaiCLI's IMAGE_EXTENSIONS and
+        // archive kinds), so the file picker, the counts and the progress total match what it does.
+        public static readonly List<string> IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".bmp", ".avif", ".tif", ".tiff", ".jxl"];
+        public static readonly List<string> ARCHIVE_EXTENSIONS = [".zip", ".cbz", ".rar", ".cbr", ".7z", ".cb7"];
 
         private readonly DispatcherTimer _timer = new();
         private static readonly HttpClient client = new();
@@ -111,6 +113,7 @@ namespace MangaJaNaiConverterGui.ViewModels
   "ResizeWidthAfterUpscale": 3840,
   "WebpSelected": true,
   "AvifSelected": false,
+  "JxlSelected": false,
   "PngSelected": false,
   "JpegSelected": false,
   "UseLosslessCompression": false,
@@ -2378,7 +2381,8 @@ namespace MangaJaNaiConverterGui.ViewModels
                 x => x.WebpSelected,
                 x => x.PngSelected,
                 x => x.JpegSelected,
-                x => x.AvifSelected
+                x => x.AvifSelected,
+                x => x.JxlSelected
             );
 
             var g3 = this.WhenAnyValue
@@ -2536,7 +2540,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         {
             get
             {
-                var format = WebpSelected ? "WebP" : PngSelected ? "PNG" : AvifSelected ? "AVIF" : "JPEG";
+                var format = WebpSelected ? "WebP" : PngSelected ? "PNG" : AvifSelected ? "AVIF" : JxlSelected ? "JPEG XL" : "JPEG";
                 var quality = ShowLossyCompressionQuality ? $" q{LossyCompressionQuality}" : ShowUseLosslessCompression ? " lossless" : "";
                 return string.IsNullOrWhiteSpace(OutputFolderPath) ? $"{format}{quality}" : $"{format}{quality} → {OutputFolderPath}";
             }
@@ -2729,6 +2733,19 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
+        private bool _jxlSelected = false;
+        [DataMember]
+        public bool JxlSelected
+        {
+            get => _jxlSelected;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _jxlSelected, value);
+                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                this.RaisePropertyChanged(nameof(ShowUseLosslessCompression));
+            }
+        }
+
         private bool _pngSelected = false;
         [DataMember]
         public bool PngSelected
@@ -2752,9 +2769,9 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        public string ImageFormat => WebpSelected ? "webp" : PngSelected ? "png" : AvifSelected ? "avif" : "jpg";
+        public string ImageFormat => WebpSelected ? "webp" : PngSelected ? "png" : AvifSelected ? "avif" : JxlSelected ? "jxl" : "jpg";
 
-        public bool ShowUseLosslessCompression => WebpSelected;
+        public bool ShowUseLosslessCompression => WebpSelected || JxlSelected;
 
         private bool _useLosslessCompression = false;
         [DataMember]
@@ -2768,7 +2785,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        public bool ShowLossyCompressionQuality => JpegSelected || (WebpSelected && !UseLosslessCompression) || AvifSelected;
+        public bool ShowLossyCompressionQuality => JpegSelected || ((WebpSelected || JxlSelected) && !UseLosslessCompression) || AvifSelected;
 
         private int? _lossyCompressionQuality = 80;
         [DataMember]
@@ -2975,6 +2992,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             PngSelected = false;
             JpegSelected = false;
             AvifSelected = false;
+            JxlSelected = false;
         }
 
         public void SetPngSelected()
@@ -2983,6 +3001,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             WebpSelected = false;
             JpegSelected = false;
             AvifSelected = false;
+            JxlSelected = false;
         }
 
         public void SetJpegSelected()
@@ -2991,11 +3010,22 @@ namespace MangaJaNaiConverterGui.ViewModels
             WebpSelected = false;
             PngSelected = false;
             AvifSelected = false;
+            JxlSelected = false;
         }
 
         public void SetAvifSelected()
         {
             AvifSelected = true;
+            JpegSelected = false;
+            WebpSelected = false;
+            PngSelected = false;
+            JxlSelected = false;
+        }
+
+        public void SetJxlSelected()
+        {
+            JxlSelected = true;
+            AvifSelected = false;
             JpegSelected = false;
             WebpSelected = false;
             PngSelected = false;
