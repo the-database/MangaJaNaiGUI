@@ -94,6 +94,7 @@ var
   CompPage: TInputOptionWizardPage;
   GpuName: String;
   HasNvidia: Boolean;
+  Unsupported: String;   // NVIDIA GPUs too old for TensorRT (NVIDIA_UNSUPPORTED; newer updaters)
   Packs: String;   // comma-separated, from MangaJaNaiUpdater --recommend (best-effort)
   LegacyDesktopIcon: Boolean;   // 1.x had a desktop shortcut, so 2.0 gets one too
 
@@ -123,6 +124,7 @@ begin
       val := Copy(Lines[i], eq + 1, Length(Lines[i]) - eq);
       if key = 'NVIDIA' then HasNvidia := (val = '1')
       else if key = 'GPU' then GpuName := val
+      else if key = 'NVIDIA_UNSUPPORTED' then Unsupported := val
       else if key = 'PACKS' then Packs := val;
     end;
   end;
@@ -135,6 +137,7 @@ var
 begin
   GpuName := '';
   HasNvidia := False;
+  Unsupported := '';
   Packs := '';
 
   ExtractTemporaryFile('{#UpdaterExe}');
@@ -151,12 +154,15 @@ begin
     trtLabel := 'TensorRT-RTX and TensorRT engines (fastest) - for ' + GpuName
   else if HasNvidia then
     trtLabel := 'TensorRT engine (fastest) - for ' + GpuName
+  else if Unsupported <> '' then
+    trtLabel := 'TensorRT engine - requires an NVIDIA RTX 20 / GTX 16 series or newer GPU (your ' + Unsupported + ' uses the built-in DirectML engine)'
   else
     trtLabel := 'TensorRT engine - requires an NVIDIA GPU (your GPU uses the built-in DirectML engine)';
   CompPage.Add(trtLabel);
 
   CompPage.Values[0] := True;
-  // TensorRT applies to NVIDIA GPUs only; other GPUs use the built-in DirectML engine.
+  // TensorRT applies to NVIDIA GPUs from the RTX 20 / GTX 16 series on only; other GPUs use the
+  // built-in DirectML engine.
   CompPage.Values[1] := HasNvidia;
   CompPage.CheckListBox.ItemEnabled[1] := HasNvidia;
 end;

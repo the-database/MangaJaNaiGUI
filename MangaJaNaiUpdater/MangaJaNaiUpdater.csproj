@@ -13,4 +13,9 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- Which NVIDIA GPUs TensorRT runs on: the app's rule, shared. -->
+    <Compile Include="..\MangaJaNaiConverterGui\Services\GpuSupport.cs" Link="GpuSupport.cs" />
+  </ItemGroup>
+
 </Project>
