@@ -41,13 +41,16 @@
 // releases/latest endpoint (a fork's, or a local test server's); MANGAJANAI_PACKS_DIR=<dir> reads
 // packs.json + component-*.7z from a local directory; MANGAJANAI_RUNTIME_MIRROR=<dir> installs the
 // store packs from a folder holding the runtime release's packs-<platform>.json and archives;
-// AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points the store at a test folder.
+// AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points the store at a test folder;
+// MANGAJANAI_TEST_GPUS="<name>:<major>.<minor>;..." stands in for the NVIDIA GPUs NVML finds ("none":
+// no NVIDIA GPU), to check the recommendations for hardware this PC doesn't have.
 
 using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using MangaJaNaiConverterGui.Services;
 using static Downloader;
 
 // The app was MangaJaNaiConverterGui until 2.0. Its exe, the package's root folder and %APPDATA% folder
@@ -818,25 +821,29 @@ string? PackVersionMismatch(PackIndex index)
 }
 
 // NVIDIA detection via NVML (ships with the driver); its absence means a non-NVIDIA GPU, which runs
-// the built-in DirectML engine and needs no TensorRT packs. Every NVIDIA GPU is reported: NVML
-// enumerates in PCI order while CUDA picks the fastest GPU first, so recommending only device 0 can
-// leave the GPU TensorRT builds on without its builder kernels on multi-GPU systems.
-static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
+// the built-in DirectML engine and needs no TensorRT packs. Every NVIDIA GPU TensorRT can run on is
+// reported: NVML enumerates in PCI order while CUDA picks the fastest GPU first, so recommending only
+// device 0 can leave the GPU TensorRT builds on without its builder kernels on multi-GPU systems.
+// GPUs too old for TensorRT (below compute capability 7.5, GpuSupport) count as no NVIDIA GPU, and are
+// reported apart (TooOld) so the app and the installer can say why they get DirectML.
+static (bool HasNvidia, string Sm, string GpuName, string TooOld) DetectGpu() =>
+    GpuSupport.Summarize(TestGpus() ?? NvidiaGpus());
+
+static List<GpuSupport.NvidiaGpu> NvidiaGpus()
 {
+    var gpus = new List<GpuSupport.NvidiaGpu>();
     try
     {
         if (Nvml.nvmlInit_v2() != 0)
         {
-            return (false, "", "");
+            return gpus;
         }
         try
         {
             if (Nvml.nvmlDeviceGetCount_v2(out uint count) != 0 || count == 0)
             {
-                return (false, "", "");
+                return gpus;
             }
-            var sms = new List<string>();
-            var names = new List<string>();
             for (uint i = 0; i < count; i++)
             {
                 if (Nvml.nvmlDeviceGetHandleByIndex_v2(i, out var dev) != 0)
@@ -846,25 +853,40 @@ static (bool HasNvidia, string Sm, string GpuName) DetectGpu()
                 Nvml.nvmlDeviceGetCudaComputeCapability(dev, out int major, out int minor);
                 var name = new byte[96];
                 Nvml.nvmlDeviceGetName(dev, name, (uint)name.Length);
-                names.Add(System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0'));
-                var sm = $"sm{major}{minor}";
-                if (!sms.Contains(sm))
-                {
-                    sms.Add(sm);
-                }
+                gpus.Add(new(System.Text.Encoding.ASCII.GetString(name).TrimEnd('\0'), major, minor));
             }
-            return sms.Count == 0 ? (false, "", "") : (true, string.Join(", ", sms), string.Join(" + ", names));
         }
         finally { Nvml.nvmlShutdown(); }
     }
     catch
     {
-        return (false, "", "");
+        // no NVML (no NVIDIA driver): no NVIDIA GPU
     }
+    return gpus;
+}
+
+// MANGAJANAI_TEST_GPUS (see the top), or null to ask NVML.
+static List<GpuSupport.NvidiaGpu>? TestGpus()
+{
+    if (Environment.GetEnvironmentVariable("MANGAJANAI_TEST_GPUS") is not { Length: > 0 } spec)
+    {
+        return null;
+    }
+    var gpus = new List<GpuSupport.NvidiaGpu>();
+    foreach (var part in spec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        int colon = part.LastIndexOf(':');
+        if (colon > 0 && GpuSupport.ParseComputeCapability(part[(colon + 1)..]) is { } cc)
+        {
+            gpus.Add(new(part[..colon], cc.Major, cc.Minor));
+        }
+    }
+    return gpus;
 }
 
 // The models every install needs, plus the TensorRT runtime and the builder pack for each NVIDIA GPU
-// generation (the exact pack if published, else the PTX fallback), plus trt-rtx when a GPU is one
+// generation TensorRT runs on (sm: DetectGpu's, without the GPUs too old for it; the exact pack if
+// published, else the PTX fallback for a newer generation), plus trt-rtx when a GPU is one
 // TensorRT-RTX is the default for (TrtRtxDefault). The TensorRT runtime stays: TensorRT-RTX runs on
 // its CUDA runtime and falls back to TensorRT. Elsewhere trt-rtx is the user's to install (App
 // Settings > Components); once installed, PreselectPack keeps it in --auto, which refreshes it when
@@ -887,14 +909,7 @@ List<string> RecommendedPacks(PackIndex index, bool hasNvidia, string sm)
     if (hasNvidia)
     {
         rec.Add("trt-runtime");
-        foreach (var s in sms)
-        {
-            var pack = index.Packs.Any(p => p.Name == $"trt-{s}") ? $"trt-{s}" : "trt-ptx";
-            if (!rec.Contains(pack))
-            {
-                rec.Add(pack);
-            }
-        }
+        rec.AddRange(GpuSupport.BuilderPacks(index.Packs.Select(p => p.Name), sm).Where(p => !rec.Contains(p)));
         if (sms.Any(TrtRtxDefault) && index.Packs.Any(p => p.Name == "trt-rtx"))
         {
             rec.Add("trt-rtx");
@@ -932,16 +947,17 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
 {
     var index = prefetched ?? await GetPackIndexAsync();
     var installed = ReadInstalledComponents(index);
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu, tooOld) = DetectGpu();
     var rec = RecommendedPacks(index, hasNvidia, sm);
     if (json)
     {
-        // consumed by the in-app component manager; keep keys stable
+        // consumed by the in-app component manager; keep keys stable. gpu.nvidia, sm and name are the
+        // NVIDIA GPUs TensorRT runs on; unsupported names the ones too old for it ("" if none).
         Console.WriteLine(JsonSerializer.Serialize(new
         {
             package_version = index.PackageVersion,
             version_mismatch = PackVersionMismatch(index),
-            gpu = new { nvidia = hasNvidia, sm, name = gpu },
+            gpu = new { nvidia = hasNvidia, sm, name = gpu, unsupported = tooOld },
             packs = index.Packs.Select(p => new
             {
                 name = p.Name,
@@ -960,9 +976,17 @@ async Task ComponentsAsync(PackIndex? prefetched, bool json = false)
     }
     Console.WriteLine(hasNvidia
         ? $"GPU: {gpu} ({sm}) - TensorRT recommended"
-        : OperatingSystem.IsWindows()
-            ? "GPU: no NVIDIA device detected - using the built-in DirectML engine (no TensorRT components needed)"
-            : "GPU: no NVIDIA device detected - MangaJaNai GUI on Linux needs an NVIDIA GPU and driver");
+        : tooOld != ""
+            ? OperatingSystem.IsWindows()
+                ? $"GPU: {tooOld} - too old for TensorRT (needs an RTX 20 / GTX 16 series or newer); using the built-in DirectML engine"
+                : $"GPU: {tooOld} - too old for TensorRT (needs an RTX 20 / GTX 16 series or newer), which MangaJaNai GUI on Linux needs"
+            : OperatingSystem.IsWindows()
+                ? "GPU: no NVIDIA device detected - using the built-in DirectML engine (no TensorRT components needed)"
+                : "GPU: no NVIDIA device detected - MangaJaNai GUI on Linux needs an NVIDIA GPU and driver");
+    if (hasNvidia && tooOld != "")
+    {
+        Console.WriteLine($"     {tooOld} - too old for TensorRT (needs an RTX 20 / GTX 16 series or newer), left out");
+    }
     Console.WriteLine($"Recommended packs: {string.Join(", ", rec)}");
     Console.WriteLine();
     foreach (var pack in index.Packs)
@@ -1101,7 +1125,7 @@ int RemoveComponent(string name)
 async Task<int> AutoComponentsAsync()
 {
     var index = await GetPackIndexAsync();
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu, _) = DetectGpu();
     var rec = RecommendedPacks(index, hasNvidia, sm);
     if (storeMode)
     {
@@ -1152,12 +1176,14 @@ async Task<int> AutoComponentsAsync()
 
 // Hardware summary for the Inno installer's component picker, as KEY=value lines. GPU identity is
 // local NVML and always available; PACKS needs the pack index - if that fails it is emitted empty and
-// the installer leaves component setup to the app's first launch.
+// the installer leaves component setup to the app's first launch. NVIDIA and GPU are the NVIDIA GPUs
+// TensorRT runs on; NVIDIA_UNSUPPORTED names the ones too old for it (empty if none).
 async Task<int> RecommendAsync()
 {
-    var (hasNvidia, sm, gpu) = DetectGpu();
+    var (hasNvidia, sm, gpu, tooOld) = DetectGpu();
     Console.WriteLine($"NVIDIA={(hasNvidia ? 1 : 0)}");
     Console.WriteLine($"GPU={gpu}");
+    Console.WriteLine($"NVIDIA_UNSUPPORTED={tooOld}");
     string packs = "";
     try
     {
