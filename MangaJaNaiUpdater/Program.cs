@@ -1134,9 +1134,13 @@ async Task<int> AutoComponentsAsync()
         want.UnionWith(rec);
         // The ref records the packs of the runtime release the last ensure installed from, and that
         // ensure's app version: after an update (which may pin a newer runtime release), ensure again.
+        // It keeps the packs only while its app path exists: one naming another path (the install was
+        // moved or renamed) is dead, and the next cleanup by any app frees the packs, so ensure again
+        // to write it for this install.
+        var (refVersion, refAppPath) = ReadStoreRef();
         bool complete = want.All(have.ContainsKey) && have.Keys.All(want.Contains) &&
                         File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")) &&
-                        ReadStoreRefVersion() == ReadLocalVersion();
+                        refVersion == ReadLocalVersion() && IsThisInstall(refAppPath);
         int rc = complete && !PrivatePackFilesLeft(index) ? 0 : StoreEnsure(index, want);
         DeleteRetiredFiles(index);
         if (rc == 0 && complete)
@@ -1292,23 +1296,45 @@ Dictionary<string, string> ReadStoreInstalled()
     return installed;
 }
 
-// The app version this install's ref was last written for ("" without a ref).
-string ReadStoreRefVersion()
+// The app version and app path this install's ref was last written for ("" and null without a ref;
+// the path is null too from an older aji-runtime, whose show doesn't print it).
+(string Version, string? AppPath) ReadStoreRef()
 {
     var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
     if (rc != 0)
     {
-        return "";
+        return ("", null);
     }
     try
     {
         using var doc = JsonDocument.Parse(stdout);
-        return doc.RootElement.TryGetProperty("app_version", out var v) && v.ValueKind == JsonValueKind.String
-            ? v.GetString() ?? "" : "";
+        var r = doc.RootElement;
+        string version = r.TryGetProperty("app_version", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        string? appPath = r.TryGetProperty("app_path", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
+        return (version, appPath);
     }
     catch
     {
-        return "";
+        return ("", null);
+    }
+}
+
+// Whether a ref's app path is this install's app (what StoreEnsure passes as --app-path). Unknown
+// (null) counts as not: ensuring again only rewrites the ref.
+bool IsThisInstall(string? refAppPath)
+{
+    if (string.IsNullOrEmpty(refAppPath))
+    {
+        return false;
+    }
+    try
+    {
+        var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        return string.Equals(Path.GetFullPath(refAppPath), Path.GetFullPath(Path.Combine(installDir, appExe)), cmp);
+    }
+    catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+    {
+        return false;
     }
 }
 
