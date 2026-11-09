@@ -852,7 +852,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 foreach (var b in UpscaleBackends.DeviceQueryOrder(UpscaleBackends.Auto, _backendService.IsTensorRtRtxInstalled)
                     .Where(b => b != UpscaleBackends.CliDirectMl))
                 {
-                    var devices = await ListDevices(b);
+                    var devices = UpscaleBackends.SplitDevices(b, await ListDevices(b)).Usable;
                     if (devices.Count > 0)
                     {
                         _nvidiaDevices = devices;
@@ -1299,11 +1299,9 @@ namespace MangaJaNaiConverterGui.ViewModels
                 bool nvidia = (bool?)gpu?["nvidia"] ?? false;
                 var gpuName = (string?)gpu?["name"] ?? "";
                 var sm = (string?)gpu?["sm"] ?? "";
-                GpuStatusText = nvidia
-                    ? $"{gpuName} ({sm})"
-                    : UpscaleBackends.DirectMlAvailable
-                        ? "No NVIDIA GPU detected — using the built-in DirectML engine."
-                        : "No NVIDIA GPU detected. On Linux, MangaJaNai GUI needs an NVIDIA GPU (TensorRT).";
+                // unsupported: NVIDIA GPUs too old for TensorRT, which "nvidia" leaves out (newer updaters)
+                var unsupported = (string?)gpu?["unsupported"] ?? "";
+                GpuStatusText = GpuStatus(nvidia, gpuName, sm, unsupported, UpscaleBackends.DirectMlAvailable);
 
                 var packs = new List<ComponentItem>();
                 foreach (var p in (Newtonsoft.Json.Linq.JArray?)root["packs"] ?? [])
@@ -1319,6 +1317,26 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 ComponentStatusText = $"Could not read components: {ex.Message}";
             }
+        }
+
+        // App Settings' GPU line, from the updater's --components --json "gpu".
+        public static string GpuStatus(bool nvidia, string gpuName, string sm, string unsupported, bool windows)
+        {
+            var tooOld = unsupported == "" ? ""
+                : $"{unsupported} is too old for TensorRT (it needs an RTX 20 / GTX 16 series or newer)";
+            if (nvidia)
+            {
+                return tooOld == "" ? $"{gpuName} ({sm})" : $"{gpuName} ({sm}). {tooOld}, so TensorRT leaves it out.";
+            }
+            if (tooOld != "")
+            {
+                return windows
+                    ? $"{tooOld} — using the built-in DirectML engine."
+                    : $"{tooOld}. On Linux, MangaJaNai GUI needs one (TensorRT).";
+            }
+            return windows
+                ? "No NVIDIA GPU detected — using the built-in DirectML engine."
+                : "No NVIDIA GPU detected. On Linux, MangaJaNai GUI needs an NVIDIA GPU (TensorRT).";
         }
 
         // Every pack the updater lists, and whether it found an NVIDIA GPU (the last RefreshComponents).
@@ -1420,6 +1438,13 @@ namespace MangaJaNaiConverterGui.ViewModels
                 if (!_backendService.IsBackendInstalled)
                 {
                     ConsoleQueueEnqueue($"The upscaling engine is missing ({_backendService.BackendExePath}). Install it from App Settings > Components.");
+                    return;
+                }
+                // TensorRT chosen with only NVIDIA GPUs too old for it: say so now, not as a failed
+                // engine build (and before asking for components that wouldn't help).
+                if (_deviceIds.Length == 0 && _tooOldGpuMessage is string tooOld)
+                {
+                    ConsoleQueueEnqueue(tooOld);
                     return;
                 }
                 if (MissingBackendComponents() is string missing)
@@ -1939,28 +1964,42 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         // Fill the device list for the chosen backend (Auto: TensorRT-RTX's devices if its component
         // is installed, else TensorRT's if it can run here, else DirectML's; TensorRT-RTX: its own,
-        // else TensorRT's), keeping the user's device while it's still there.
+        // else TensorRT's), keeping the user's device while it's still there. NVIDIA GPUs too old for
+        // TensorRT aren't TensorRT or TensorRT-RTX devices, so Auto goes on to DirectML for them.
         public async Task RefreshDevices()
         {
             var backends = UpscaleBackends.DeviceQueryOrder(UpscaleBackend, _backendService.IsTensorRtRtxInstalled);
             List<BackendDevice> devices = [];
+            List<BackendDevice> tooOld = [];
             var backend = backends[0];
             foreach (var b in backends)
             {
-                devices = await ListDevices(b);
+                var (usable, old) = UpscaleBackends.SplitDevices(b, await ListDevices(b));
+                devices = usable;
+                tooOld.AddRange(old.Where(o => !tooOld.Any(t => t.Id == o.Id)));
                 backend = b;
                 if (devices.Count > 0)
                 {
                     break;
                 }
             }
-            UseDeviceList(backend, devices);
+            UseDeviceList(backend, devices, tooOld);
         }
 
+        // Why no device can upscale, when that's NVIDIA GPUs too old for the chosen TensorRT or
+        // TensorRT-RTX (the last UseDeviceList); an upscale then stops with it.
+        private string? _tooOldGpuMessage;
+
         // The devices `backend` listed (the last one asked, if none did): the device list, the
-        // device, and everything that depends on the backend and device.
-        public void UseDeviceList(string backend, List<BackendDevice> devices)
+        // device, and everything that depends on the backend and device. tooOld: the NVIDIA GPUs the
+        // TensorRT backends listed that are too old for them (any in devices are moved there too).
+        public void UseDeviceList(string backend, List<BackendDevice> devices, List<BackendDevice>? tooOld = null)
         {
+            var split = UpscaleBackends.SplitDevices(backend, devices);
+            devices = split.Usable;
+            tooOld = [.. tooOld ?? [], .. split.TooOld];
+            _tooOldGpuMessage = devices.Count == 0 ? UpscaleBackends.TooOldGpuMessage(UpscaleBackend, tooOld) : null;
+
             // Auto's list is the NVIDIA devices the setup check (UpdateBackendSetupHint) needs: what
             // TensorRT-RTX or TensorRT found, or none if it came down to DirectML.
             if (UpscaleBackends.Normalize(UpscaleBackend) == UpscaleBackends.Auto)
@@ -1993,7 +2032,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 _refreshingDevices = false;
             }
             var upscaleBackend = UpscaleBackends.UpscaleBackend(UpscaleBackend, devices.Count > 0 ? backend : null);
-            DeviceStatusText = MissingBackendComponents() ?? (devices.Count == 0
+            DeviceStatusText = _tooOldGpuMessage ?? MissingBackendComponents() ?? (devices.Count == 0
                 ? UpscaleBackends.DirectMlAvailable
                     ? "No compatible GPU found. MangaJaNai GUI needs an NVIDIA GPU (TensorRT) or a DirectX 12 GPU (DirectML)."
                     : "No compatible GPU found. On Linux, MangaJaNai GUI needs an NVIDIA GPU (TensorRT) and its driver."

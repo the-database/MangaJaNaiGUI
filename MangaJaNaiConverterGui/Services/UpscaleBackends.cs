@@ -49,6 +49,38 @@ namespace MangaJaNaiConverterGui.Services
             _ => trtRtxInstalled ? [CliTensorRtRtx, CliTensorRt, CliDirectMl] : [CliTensorRt, CliDirectMl],
         };
 
+        // A --list-devices list from cliBackend, split into the devices it can upscale on and the NVIDIA
+        // GPUs too old for TensorRT and TensorRT-RTX (GpuSupport.TrtMinComputeCapability). Only those
+        // two backends drop any; an older backend lists them, so the app drops them itself. In a PC
+        // with an old and a new NVIDIA GPU, only the old one is left out.
+        public static (List<BackendDevice> Usable, List<BackendDevice> TooOld) SplitDevices(string cliBackend, IEnumerable<BackendDevice> devices)
+        {
+            var list = devices.ToList();
+            if (cliBackend is not (CliTensorRt or CliTensorRtRtx))
+            {
+                return (list, []);
+            }
+            return (list.Where(d => GpuSupport.TensorRtCapable(d.ComputeCapability)).ToList(),
+                    list.Where(d => !GpuSupport.TensorRtCapable(d.ComputeCapability)).ToList());
+        }
+
+        // When no backend listed a device it can use: why, if the reason is NVIDIA GPUs too old for
+        // TensorRT (tooOld) while TensorRT or TensorRT-RTX is chosen, or Auto on Linux, where TensorRT
+        // is the only backend; null otherwise (Auto on Windows has DirectML for them).
+        public static string? TooOldGpuMessage(string? choice, IReadOnlyList<BackendDevice> tooOld) =>
+            TooOldGpuMessage(choice, tooOld, OperatingSystem.IsWindows());
+
+        public static string? TooOldGpuMessage(string? choice, IReadOnlyList<BackendDevice> tooOld, bool windows)
+        {
+            var normalized = Normalize(choice, windows);
+            if (tooOld.Count == 0 || normalized == DirectMl || (normalized == Auto && windows))
+            {
+                return null;
+            }
+            var names = GpuSupport.Describe(tooOld.GroupBy(d => d.Name).Select(g => (g.Key, g.First().ComputeCapability ?? "?")));
+            return GpuSupport.TooOldMessage(names, windows);
+        }
+
         // The --backend an upscale runs with, given the backend whose list supplied the devices (null
         // when none listed any): Auto runs whichever listed them. TensorRT-RTX stays TensorRT-RTX on
         // TensorRT's device list: the CLI falls back to TensorRT on its own when TensorRT-RTX can't

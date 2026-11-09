@@ -69,15 +69,23 @@ manifest="$HERE/manifest.json"
 url="$(sed -n 's/.*"index_url": *"\([^"]*\)".*/\1/p' "$manifest" 2>/dev/null | head -1)"
 sha="$(sed -n 's/.*"index_sha256": *"\([0-9a-f]*\)".*/\1/p' "$manifest" 2>/dev/null | head -1)"
 export AJI_RUNTIME_JSON="$DATA/aji-runtime.json"
-# The newest NVIDIA GPU's compute capability (86 for 8.6) picks the DAT2/HAT variant: bf16 on 8.0+,
-# else fp32. Without an NVIDIA GPU there's no TensorRT, so only the models.
-cc="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | tr -d ' .' | sort -n | tail -1)"
+# The NVIDIA GPUs' compute capabilities (86 for 8.6). TensorRT needs 7.5+ (RTX 20 / GTX 16 series and
+# newer; the app's GpuSupport.TrtMinComputeCapability): older GPUs are left out, and with only those
+# there's no TensorRT (Linux has no DirectML), so only the models. The newest GPU picks the DAT2/HAT
+# variant: bf16 on 8.0+, else fp32.
+TRT_MIN_CC=75
+ccs="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | tr -d ' .' | sort -un)"
+trt_sms=""
+for c in $ccs; do
+    [ "$c" -ge "$TRT_MIN_CC" ] 2>/dev/null && trt_sms="${trt_sms:+$trt_sms,}sm$c"
+done
+cc="$(echo "$ccs" | tail -1)"
 variant=fp32
 [ "${cc:-0}" -ge 80 ] 2>/dev/null && variant=bf16
 want="models-mangajanai,models-illustrationjanai,models-illustrationjanai-$variant"
-# trt: the TensorRT runtime and a builder pack per GPU generation (aji-runtime asks NVML). Linux has
-# no TensorRT-RTX.
-[ -n "$cc" ] && want="trt,$want"
+# trt: the TensorRT runtime and a builder pack per GPU generation in trt_sms (passed as --gpus, so an
+# old GPU next to a new one gets no builder pack). Linux has no TensorRT-RTX.
+[ -n "$trt_sms" ] && want="trt,$want"
 stamp="$DATA/aji-runtime.stamp"
 target="${APPIMAGE:-$HERE/AppRun}"
 need=0
@@ -92,14 +100,15 @@ if [ -f "$lock" ] && ! kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
 fi
 if [ $need = 1 ] && [ -x "$HERE/aji-runtime" ] && [ -n "$url" ] && [ -n "$sha" ] && [ ! -f "$lock" ]; then
     cp -f "$HERE/aji-runtime" "$DATA/aji-runtime" 2>/dev/null || true
-    export DATA ver url sha want stamp target lock
+    export DATA ver url sha want stamp target lock trt_sms
     # setsid: its own session, so closing the app (or Ctrl+C in its terminal) doesn't stop it
     installer='
         echo $$ > "$lock"
         trap '\''rm -f "$lock"'\'' EXIT
         echo "MangaJaNai GUI: installing $want into the shared pack store (one-time)..."
         if "$DATA/aji-runtime" ensure --app-id mangajanai-gui-appimage --app-path "$target" \
-               --app-version "$ver" --index "$url" --index-sha256 "$sha" --want "$want" --aji-dir "$DATA"; then
+               --app-version "$ver" --index "$url" --index-sha256 "$sha" --want "$want" \
+               --gpus "${trt_sms:-none}" --aji-dir "$DATA"; then
             echo "$ver $want" > "$stamp"
             # builder kernels an AppImage from before the store fetched here
             rm -f "$DATA"/inference/libnvinfer_builder_resource_* "$DATA/7zz"
