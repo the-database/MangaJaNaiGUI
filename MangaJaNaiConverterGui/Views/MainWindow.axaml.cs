@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Windowing;
+using MangaJaNaiConverterGui.Services;
 using MangaJaNaiConverterGui.ViewModels;
 using Material.Icons.Avalonia;
 using System;
@@ -32,6 +33,22 @@ namespace MangaJaNaiConverterGui.Views
             // Installs a staged update once the app has exited.
             Closed += (_, _) => (DataContext as MainWindowViewModel)?.OnAppExit();
             Opened += MainWindow_Opened;
+            // The device box lists each connected monitor. Linux: from the kernel (native size and model
+            // name; X11/XWayland gives connector names and, with Wayland scaling, scaled sizes). Elsewhere:
+            // Screen.Bounds, in physical pixels with the monitor's rotation applied.
+            DataContextChanged += (_, _) =>
+            {
+                if (DataContext is MainWindowViewModel vm)
+                {
+                    vm.ConnectedMonitors = () => (OperatingSystem.IsLinux()
+                            ? LinuxMonitors.Read().Select(m => ReaderDevice.ConnectedMonitor(m.Name, null, m.Width, m.Height))
+                            : Screens.All
+                                .OrderByDescending(s => s.IsPrimary)
+                                .Select(s => ReaderDevice.ConnectedMonitor(s.DisplayName, s.IsPrimary, s.Bounds.Width, s.Bounds.Height)))
+                        .DistinctBy(d => d.ToString())
+                        .ToList();
+                }
+            };
 
             var inputFileNameTextBox = this.FindControl<TextBox>("InputFileNameTextBox");
             var inputFolderNameTextBox = this.FindControl<TextBox>("InputFolderNameTextBox");

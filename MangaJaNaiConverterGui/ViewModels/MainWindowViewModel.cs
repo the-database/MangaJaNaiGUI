@@ -14,7 +14,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -35,7 +34,6 @@ namespace MangaJaNaiConverterGui.ViewModels
         public static readonly List<string> ARCHIVE_EXTENSIONS = [".zip", ".cbz", ".rar", ".cbr", ".7z", ".cb7"];
 
         private readonly DispatcherTimer _timer = new();
-        private static readonly HttpClient client = new();
 
         // Auto update state: the latest release's version, the version staged by the background
         // download (installed when the app closes), and the download in flight.
@@ -476,14 +474,6 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaiseAndSetIfChanged(ref _deviceList, value);
                 this.RaisePropertyChanged(nameof(SelectedDeviceIndex));
             }
-        }
-
-        private AvaloniaDictionary<string, ReaderDevice> _displayDeviceMap = [];
-        [DataMember]
-        public AvaloniaDictionary<string, ReaderDevice> DisplayDeviceMap
-        {
-            get => _displayDeviceMap;
-            set => this.RaiseAndSetIfChanged(ref _displayDeviceMap, value);
         }
 
         // The console's height, dragged with the handle above it.
@@ -2436,34 +2426,16 @@ namespace MangaJaNaiConverterGui.ViewModels
         // Avalonia 12 compiled bindings only convert zero/one-parameter methods to delegates.
         public Func<string?, CancellationToken, Task<IEnumerable<object>>> DevicesPopulator => PopulateDevicesAsync;
 
-        public async Task<IEnumerable<object>> PopulateDevicesAsync(string? searchText, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var requestUrl = $"https://animejan.ai/mangajanai/api/search?q={Uri.EscapeDataString(searchText?.Trim() ?? "")}&p=0&s=4";
-                if (string.IsNullOrWhiteSpace(searchText))
-                {
-                    requestUrl = $"https://animejan.ai/mangajanai/api/top";
-                }
-                var response = await client.GetStringAsync(requestUrl, cancellationToken);
-                var devices = JsonConvert.DeserializeObject<List<ReaderDevice>>(response, NewtonsoftJsonSuspensionDriver.Settings);
-                if (devices != null)
-                {
-                    foreach (var device in devices)
-                    {
-                        DisplayDeviceMap[device.ToString()] = device;
+        // The monitors connected right now; the window supplies them (it knows the screens).
+        public Func<IReadOnlyList<ReaderDevice>>? ConnectedMonitors { get; set; }
 
-                    }
-                    return devices.ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-            }
-
-            return [];
-        }
+        // Searches the device list bundled with the app, plus the connected monitors; no network.
+        // The devices picked in any workflow come first before anything is typed.
+        public Task<IEnumerable<object>> PopulateDevicesAsync(string? searchText, CancellationToken cancellationToken) =>
+            Task.FromResult<IEnumerable<object>>(ReaderDevice.Search(
+                ReaderDevice.All.Concat(ConnectedMonitors?.Invoke() ?? []),
+                searchText,
+                Workflows?.Select(w => w?.DisplayDevice)));
 
         // Called once for the app's state (not every view model instance): check now, then
         // periodically, downloading in the background while Auto Update is on.
@@ -3261,6 +3233,10 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
+        // The display's two sides, in either order (the orientation picks which is the width).
+        private int _displaySideA;
+        private int _displaySideB;
+
         private string _displayDevice;
         [DataMember]
         public string DisplayDevice
@@ -3268,45 +3244,45 @@ namespace MangaJaNaiConverterGui.ViewModels
             get => _displayDevice;
             set
             {
+                // A listed device or a typed size such as "1404 x 1872"; anything else has no size.
+                var size = ReaderDevice.SizeOf(value);
+                _displaySideA = size?.Item1 ?? 0;
+                _displaySideB = size?.Item2 ?? 0;
+                // A connected monitor picked: match how it's rotated now. (Loading a saved workflow
+                // sets the saved orientation after this.)
+                if (value != _displayDevice && size is (int w, int h) && ReaderDevice.IsRotatedMonitor(value))
+                {
+                    DisplayPortraitSelected = h > w;
+                }
                 this.RaiseAndSetIfChanged(ref _displayDevice, value);
                 this.RaisePropertyChanged(nameof(DisplayDeviceWidth));
                 this.RaisePropertyChanged(nameof(DisplayDeviceHeight));
             }
         }
 
+        // Saved with the workflow, so the CLI (which reads them from the state) and the next launch keep
+        // a device's size even after the list drops or renames it. The list wins for a device it has.
         [DataMember]
         public int DisplayDeviceWidth
         {
-            get
-            {
-                if (Vm != null && DisplayDevice != null)
-                {
-                    Vm.DisplayDeviceMap.TryGetValue(DisplayDevice, out var displayDevice);
-                    if (displayDevice != null)
-                    {
-                        return DisplayPortraitSelected ? displayDevice.Width : displayDevice.Height;
-                    }
-                }
-
-                return 0;
-            }
+            get => DisplayPortraitSelected ? Math.Min(_displaySideA, _displaySideB) : Math.Max(_displaySideA, _displaySideB);
+            private set => RestoreDisplaySide(ref _displaySideA, value);
         }
 
         [DataMember]
         public int DisplayDeviceHeight
         {
-            get
-            {
-                if (Vm != null && DisplayDevice != null)
-                {
-                    Vm.DisplayDeviceMap.TryGetValue(DisplayDevice, out var displayDevice);
-                    if (displayDevice != null)
-                    {
-                        return DisplayPortraitSelected ? displayDevice.Height : displayDevice.Width;
-                    }
-                }
+            get => DisplayPortraitSelected ? Math.Max(_displaySideA, _displaySideB) : Math.Min(_displaySideA, _displaySideB);
+            private set => RestoreDisplaySide(ref _displaySideB, value);
+        }
 
-                return 0;
+        private void RestoreDisplaySide(ref int side, int value)
+        {
+            if (value > 0 && ReaderDevice.SizeOf(DisplayDevice) == null)
+            {
+                side = value;
+                this.RaisePropertyChanged(nameof(DisplayDeviceWidth));
+                this.RaisePropertyChanged(nameof(DisplayDeviceHeight));
             }
         }
 
@@ -3512,7 +3488,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             if (ModeFitToDisplaySelected && (DisplayDeviceWidth == 0 || DisplayDeviceHeight == 0))
             {
                 valid = false;
-                validationText.Add("Tablet Device or Display is invalid. Please make a selection from the list of options.");
+                validationText.Add("Tablet Device or Display is invalid. Pick a device from the list, or type a size such as 1404 x 1872.");
             }
 
             foreach (var chain in Chains ?? [])
@@ -4075,37 +4051,6 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
     }
 
-    // TODO refactor into separate file
-    public class ReaderDevice
-    {
-        public string Name { get; set; } = default!;
-        public string Brand { get; set; } = default!;
-        public string Year { get; set; } = default!;
-        public int Width { get; set; } = default!;
-        public int Height { get; set; } = default!;
-
-        public override string ToString()
-        {
-            List<string> parts = [];
-
-            if (!string.IsNullOrWhiteSpace(Brand))
-            {
-                parts.Add(Brand);
-            }
-
-            if (!string.IsNullOrWhiteSpace(Name))
-            {
-                parts.Add(Name);
-            }
-
-            if (!string.IsNullOrWhiteSpace(Year))
-            {
-                parts.Add($"({Year})");
-            }
-
-            return string.Join(" ", parts);
-        }
-    }
 
     // An entry of a chain's model picker: a model file name, and whether it's missing (the chain's
     // saved model, which isn't installed).
