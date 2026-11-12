@@ -160,7 +160,14 @@ namespace MangaJaNaiConverterGui.Tests
         [InlineData("  kobo elipsa 2e (2023) ", 1404, 1872)]
         [InlineData("1404 x 1872", 1404, 1872)]
         [InlineData("1872×1404", 1872, 1404)]
-        [InlineData("This display (2560 × 1440)", 2560, 1440)]
+        [InlineData("1404x1872", 1404, 1872)]
+        [InlineData("1404X1872", 1404, 1872)]
+        [InlineData("1404*1872", 1404, 1872)]
+        [InlineData("1404 1872", 1404, 1872)]
+        [InlineData("1404,1872", 1404, 1872)]
+        [InlineData("1404, 1872", 1404, 1872)]
+        [InlineData("1404 by 1872", 1404, 1872)]
+        [InlineData("My monitor (2560 × 1440)", 2560, 1440)]
         public void SizeOfReadsListedDevicesAndTypedSizes(string text, int a, int b) =>
             Assert.Equal((a, b), ReaderDevice.SizeOf(Devices, text));
 
@@ -170,6 +177,9 @@ namespace MangaJaNaiConverterGui.Tests
         [InlineData("Kobo Elipsa")]
         [InlineData("1404")]
         [InlineData("0 x 1872")]
+        [InlineData("fire hd 10 2023")]
+        [InlineData("tab 2024 2025")]
+        [InlineData("10 2023")]
         public void SizeOfAnythingElseIsNull(string? text) =>
             Assert.Null(ReaderDevice.SizeOf(Devices, text));
 
@@ -221,14 +231,6 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Equal((1872, 1404), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
         }
 
-        [Fact]
-        public void UsingThisDisplayKeepsItsOrientation()
-        {
-            var workflow = new UpscaleWorkflow();
-            workflow.UseDisplay(2560, 1440);
-            Assert.False(workflow.DisplayPortraitSelected);
-            Assert.Equal((2560, 1440), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
-        }
 
         [Fact]
         public void AnUnknownNameHasNoSize() =>

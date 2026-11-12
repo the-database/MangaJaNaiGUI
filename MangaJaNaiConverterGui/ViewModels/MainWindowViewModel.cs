@@ -3274,13 +3274,6 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        // "Use this display": the monitor's own size and orientation.
-        public void UseDisplay(int width, int height)
-        {
-            DisplayPortraitSelected = height > width;
-            DisplayDevice = ReaderDevice.DisplayLabel(width, height);
-        }
-
         private bool _displayPortraitSelected = true;
         [DataMember]
         public bool DisplayPortraitSelected
@@ -3483,7 +3476,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             if (ModeFitToDisplaySelected && (DisplayDeviceWidth == 0 || DisplayDeviceHeight == 0))
             {
                 valid = false;
-                validationText.Add("Tablet Device or Display is invalid. Pick a device from the list, click Use This Display, or type a size such as 1404 x 1872.");
+                validationText.Add("Tablet Device or Display is invalid. Pick a device from the list, or type a size such as 1404 x 1872.");
             }
 
             foreach (var chain in Chains ?? [])

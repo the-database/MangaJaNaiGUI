@@ -194,7 +194,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
 
         // The size behind what's in the device box: a listed device's label, or a typed size such as
-        // "1404 x 1872" or "This display (2560 × 1440)". The two sides come back in the order given.
+        // "1404 x 1872" or "My monitor (2560 × 1440)". The two sides come back in the order given.
         public static (int, int)? SizeOf(IEnumerable<ReaderDevice> devices, string? text)
         {
             var trimmed = text?.Trim();
@@ -210,6 +210,10 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
 
             var match = SizePattern().Match(trimmed);
+            if (!match.Success)
+            {
+                match = BareSizePattern().Match(trimmed);
+            }
             if (match.Success && int.TryParse(match.Groups[1].Value, out var a) && int.TryParse(match.Groups[2].Value, out var b) && a > 0 && b > 0)
             {
                 return (a, b);
@@ -220,11 +224,13 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         public static (int, int)? SizeOf(string? text) => SizeOf(All, text);
 
-        // The label "Use this display" gives a monitor, which SizeOf reads back.
-        public static string DisplayLabel(int width, int height) => $"This display ({width} × {height})";
-
         [GeneratedRegex(@"(?<!\d)(\d{2,5})\s*[x×X*]\s*(\d{2,5})(?!\d)")]
         private static partial Regex SizePattern();
+
+        // Two numbers and nothing else: "1404 1872", "1404,1872", "1404 by 1872". Only the whole text,
+        // so a search such as "fire hd 10 2023" is never taken for a size.
+        [GeneratedRegex(@"^(\d{3,5})\s*(?:,|\s+by\s+|\s+)\s*(\d{3,5})$", RegexOptions.IgnoreCase)]
+        private static partial Regex BareSizePattern();
 
         [GeneratedRegex(@"[^\p{L}\p{N}.]+")]
         private static partial Regex TokenSplit();
