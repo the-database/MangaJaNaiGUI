@@ -476,14 +476,10 @@
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
                       <ColumnDefinition Width="*" MaxWidth="500" />
-                      <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <ContentControl Classes="hint" Content="Tablet Device or Display"
                                     ToolTip.Tip="The tablet, e-reader or monitor the images will be read on. Start typing to search the list, or type its resolution, such as 1404 x 1872." />
-                    <AutoCompleteBox Grid.Column="1" Classes="clearButton" HorizontalAlignment="Stretch" AsyncPopulator="{Binding DevicesPopulator}" FilterMode="None" Text="{Binding CurrentWorkflow.DisplayDevice}" Tapped="HandleDevicesTapped" GotFocus="HandleDevicesGotFocus" MinimumPrefixLength="0" MaxDropDownHeight="360" PlaceholderText="Search devices, or type a size like 1404 x 1872" />
-                    <Button Grid.Column="2" Margin="8,0,0,0" Content="Use This Display" Click="HandleUseThisDisplayClick"
-                            ToolTip.Tip="Use the resolution and orientation of the monitor this window is on." />
-                  </Grid>
+                    <AutoCompleteBox Grid.Column="1" Classes="clearButton" HorizontalAlignment="Stretch" AsyncPopulator="{Binding DevicesPopulator}" FilterMode="None" Text="{Binding CurrentWorkflow.DisplayDevice}" Tapped="HandleDevicesTapped" GotFocus="HandleDevicesGotFocus" MinimumPrefixLength="0" MaxDropDownHeight="360" PlaceholderText="Search devices, or type a size like 1404 x 1872" />                  </Grid>
                   <StackPanel Classes="row">
                     <ContentControl Classes="hint" Content="Display Orientation"
                                     ToolTip.Tip="Whether the display will be used in portrait/vertical mode or landscape/horizontal mode." />
