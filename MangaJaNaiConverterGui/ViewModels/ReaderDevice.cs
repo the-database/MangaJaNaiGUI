@@ -235,20 +235,20 @@ namespace MangaJaNaiConverterGui.ViewModels
         // A monitor plugged into this computer, listed like any device (not pinned first). Labeled by what
         // people recognize: main or other, its size as it's set up now (rotation included, physical
         // pixels) and orientation; the model name, which few know, comes last as a hint:
-        // "Your main monitor · 3840 × 2160 landscape · 27M2V". No "Monitor 1/2": the screen order here
+        // "Main monitor · 3840 × 2160 landscape · 27M2V". No "Monitor 1/2": the screen order here
         // needn't match Windows' numbering. The size is in the label, so a saved pick keeps it after the
         // monitor is unplugged.
         public static ReaderDevice ConnectedMonitor(string? name, bool main, int width, int height)
         {
-            var which = main ? "main monitor" : "other monitor";
-            var label = $"Your {which} · {width} × {height} {(height > width ? "portrait" : "landscape")}";
+            var which = main ? "Main monitor" : "Other monitor";
+            var label = $"{which} · {width} × {height} {(height > width ? "portrait" : "landscape")}";
             if (!string.IsNullOrWhiteSpace(name))
             {
                 label += $" · {name.Trim()}";
             }
             return new ReaderDevice
             {
-                Brand = "Your",
+                Brand = "",
                 Name = which,
                 Year = "",
                 Width = Math.Min(width, height),
@@ -261,7 +261,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         public static bool IsConnectedMonitor(string? text) =>
             ConnectedMonitorPattern().IsMatch(text ?? "");
 
-        [GeneratedRegex(@"^\s*Your (main|other) monitor\b", RegexOptions.IgnoreCase)]
+        [GeneratedRegex(@"^\s*(main|other) monitor ·", RegexOptions.IgnoreCase)]
         private static partial Regex ConnectedMonitorPattern();
 
         [GeneratedRegex(@"(?<!\d)(\d{2,5})\s*[x×X*]\s*(\d{2,5})(?!\d)")]
