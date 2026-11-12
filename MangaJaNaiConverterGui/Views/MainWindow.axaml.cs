@@ -541,6 +541,15 @@ namespace MangaJaNaiConverterGui.Views
             }
         }
 
+        // Screen.Bounds is in physical pixels, which is what the upscaled pages are sized to.
+        private void HandleUseThisDisplayClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            if (DataContext is MainWindowViewModel vm && vm.CurrentWorkflow != null && Screens.ScreenFromWindow(this) is { } screen)
+            {
+                vm.CurrentWorkflow.UseDisplay(screen.Bounds.Width, screen.Bounds.Height);
+            }
+        }
+
         private void HandleDevicesTapped(object? sender, Avalonia.Input.TappedEventArgs e)
         {
             if (DataContext is MainWindowViewModel vm && sender is AutoCompleteBox cb)

@@ -1,0 +1,2228 @@
+[
+  {
+    "Name": "Kindle Scribe Colorsoft",
+    "Brand": "Amazon",
+    "Year": "2025",
+    "Width": 1986,
+    "Height": 2648,
+    "Popular": true
+  },
+  {
+    "Name": "Kindle Scribe",
+    "Brand": "Amazon",
+    "Year": "2025",
+    "Width": 1986,
+    "Height": 2648,
+    "Popular": true
+  },
+  {
+    "Name": "Kindle Colorsoft",
+    "Brand": "Amazon",
+    "Year": "2025",
+    "Width": 1272,
+    "Height": 1696,
+    "Popular": true
+  },
+  {
+    "Name": "Kindle Colorsoft",
+    "Brand": "Amazon",
+    "Year": "2024",
+    "Width": 1272,
+    "Height": 1696
+  },
+  {
+    "Name": "Kindle Paperwhite",
+    "Brand": "Amazon",
+    "Year": "2024",
+    "Width": 1272,
+    "Height": 1696,
+    "Popular": true
+  },
+  {
+    "Name": "Kindle",
+    "Brand": "Amazon",
+    "Year": "2024",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Kindle Scribe",
+    "Brand": "Amazon",
+    "Year": "2024",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Kindle Scribe",
+    "Brand": "Amazon",
+    "Year": "2022",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Kindle",
+    "Brand": "Amazon",
+    "Year": "2022",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Kindle Paperwhite",
+    "Brand": "Amazon",
+    "Year": "2021",
+    "Width": 1236,
+    "Height": 1648
+  },
+  {
+    "Name": "Kindle Oasis",
+    "Brand": "Amazon",
+    "Year": "2019",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Kindle",
+    "Brand": "Amazon",
+    "Year": "2019",
+    "Width": 600,
+    "Height": 800
+  },
+  {
+    "Name": "Kindle Paperwhite",
+    "Brand": "Amazon",
+    "Year": "2018",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Kindle Oasis",
+    "Brand": "Amazon",
+    "Year": "2017",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Kindle Paperwhite",
+    "Brand": "Amazon",
+    "Year": "2015",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Libra Colour",
+    "Brand": "Kobo",
+    "Year": "2024",
+    "Width": 1264,
+    "Height": 1680,
+    "Popular": true
+  },
+  {
+    "Name": "Clara Colour",
+    "Brand": "Kobo",
+    "Year": "2024",
+    "Width": 1072,
+    "Height": 1448,
+    "Popular": true
+  },
+  {
+    "Name": "Clara BW",
+    "Brand": "Kobo",
+    "Year": "2024",
+    "Width": 1072,
+    "Height": 1448,
+    "Popular": true
+  },
+  {
+    "Name": "Elipsa 2E",
+    "Brand": "Kobo",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872,
+    "Popular": true
+  },
+  {
+    "Name": "Clara 2E",
+    "Brand": "Kobo",
+    "Year": "2022",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Sage",
+    "Brand": "Kobo",
+    "Year": "2021",
+    "Width": 1440,
+    "Height": 1920,
+    "Popular": true
+  },
+  {
+    "Name": "Libra 2",
+    "Brand": "Kobo",
+    "Year": "2021",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Elipsa",
+    "Brand": "Kobo",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Nia",
+    "Brand": "Kobo",
+    "Year": "2020",
+    "Width": 758,
+    "Height": 1024
+  },
+  {
+    "Name": "Libra H2O",
+    "Brand": "Kobo",
+    "Year": "2019",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Forma",
+    "Brand": "Kobo",
+    "Year": "2018",
+    "Width": 1440,
+    "Height": 1920
+  },
+  {
+    "Name": "Clara HD",
+    "Brand": "Kobo",
+    "Year": "2018",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Aura H2O Edition 2",
+    "Brand": "Kobo",
+    "Year": "2017",
+    "Width": 1080,
+    "Height": 1440
+  },
+  {
+    "Name": "Aura One",
+    "Brand": "Kobo",
+    "Year": "2016",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Note Air6 C",
+    "Brand": "ONYX",
+    "Year": "2026",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Boox Note Mini C",
+    "Brand": "ONYX",
+    "Year": "2026",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "Boox Go 10.3 Gen II",
+    "Brand": "ONYX",
+    "Year": "2026",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Boox Note Air5 C",
+    "Brand": "ONYX",
+    "Year": "2025",
+    "Width": 1860,
+    "Height": 2480,
+    "Popular": true
+  },
+  {
+    "Name": "Boox Tab X C",
+    "Brand": "ONYX",
+    "Year": "2025",
+    "Width": 2400,
+    "Height": 3200
+  },
+  {
+    "Name": "Boox Go Color 7 Gen II",
+    "Brand": "ONYX",
+    "Year": "2025",
+    "Width": 1264,
+    "Height": 1680,
+    "Popular": true
+  },
+  {
+    "Name": "Boox Go 7",
+    "Brand": "ONYX",
+    "Year": "2025",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Boox Note Max",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 2400,
+    "Height": 3200
+  },
+  {
+    "Name": "Boox Note Air4 C",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 1860,
+    "Height": 2480,
+    "Popular": true
+  },
+  {
+    "Name": "Boox Palma 2",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 824,
+    "Height": 1648
+  },
+  {
+    "Name": "Boox Go 6",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Boox Go 10.3",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Boox Go Color 7",
+    "Brand": "ONYX",
+    "Year": "2024",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Boox Note Air3",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Tab Ultra C Pro",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1860,
+    "Height": 2480,
+    "Popular": true
+  },
+  {
+    "Name": "Boox Note Air3 C",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Boox Page",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Boox Palma",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 824,
+    "Height": 1648,
+    "Popular": true
+  },
+  {
+    "Name": "Boox Tab Mini C",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Tab Ultra C",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Boox Poke 5",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Boox Tab X",
+    "Brand": "ONYX",
+    "Year": "2023",
+    "Width": 1650,
+    "Height": 2200
+  },
+  {
+    "Name": "Boox Tab Ultra",
+    "Brand": "ONYX",
+    "Year": "2022",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Nova Air 2",
+    "Brand": "ONYX",
+    "Year": "2022",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Leaf 2",
+    "Brand": "ONYX",
+    "Year": "2022",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Boox Note Air 2 Plus",
+    "Brand": "ONYX",
+    "Year": "2022",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Nova Air C",
+    "Brand": "ONYX",
+    "Year": "2022",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Max Lumi 2",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1650,
+    "Height": 2200
+  },
+  {
+    "Name": "Boox Leaf",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "Boox Note Air 2",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Note 5",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Nova Air",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Nova 3 Color",
+    "Brand": "ONYX",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Note Air",
+    "Brand": "ONYX",
+    "Year": "2020",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Max Lumi",
+    "Brand": "ONYX",
+    "Year": "2020",
+    "Width": 1650,
+    "Height": 2200
+  },
+  {
+    "Name": "Boox Nova 3",
+    "Brand": "ONYX",
+    "Year": "2020",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Boox Poke 3",
+    "Brand": "ONYX",
+    "Year": "2020",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Era Color",
+    "Brand": "PocketBook",
+    "Year": "2024",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "InkPad Eo",
+    "Brand": "PocketBook",
+    "Year": "2024",
+    "Width": 1860,
+    "Height": 2480
+  },
+  {
+    "Name": "Verse Pro Color",
+    "Brand": "PocketBook",
+    "Year": "2024",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "InkPad Color 3",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "InkPad 4",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "InkPad Color 2",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "InkPad X Pro",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Verse Pro",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Verse",
+    "Brand": "PocketBook",
+    "Year": "2023",
+    "Width": 758,
+    "Height": 1024
+  },
+  {
+    "Name": "Era",
+    "Brand": "PocketBook",
+    "Year": "2022",
+    "Width": 1264,
+    "Height": 1680
+  },
+  {
+    "Name": "InkPad Lite",
+    "Brand": "PocketBook",
+    "Year": "2021",
+    "Width": 825,
+    "Height": 1200
+  },
+  {
+    "Name": "InkPad Color",
+    "Brand": "PocketBook",
+    "Year": "2021",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Color",
+    "Brand": "PocketBook",
+    "Year": "2020",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "Touch Lux 5",
+    "Brand": "PocketBook",
+    "Year": "2020",
+    "Width": 758,
+    "Height": 1024
+  },
+  {
+    "Name": "InkPad X",
+    "Brand": "PocketBook",
+    "Year": "2019",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "InkPad 3 Pro",
+    "Brand": "PocketBook",
+    "Year": "2019",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Touch HD 3",
+    "Brand": "PocketBook",
+    "Year": "2019",
+    "Width": 1072,
+    "Height": 1448
+  },
+  {
+    "Name": "InkPad 3",
+    "Brand": "PocketBook",
+    "Year": "2018",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Paper Pure",
+    "Brand": "reMarkable",
+    "Year": "2026",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Paper Pro Move",
+    "Brand": "reMarkable",
+    "Year": "2025",
+    "Width": 954,
+    "Height": 1696
+  },
+  {
+    "Name": "Paper Pro",
+    "Brand": "reMarkable",
+    "Year": "2024",
+    "Width": 1620,
+    "Height": 2160,
+    "Popular": true
+  },
+  {
+    "Name": "2",
+    "Brand": "reMarkable",
+    "Year": "2020",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Manta (A5 X2)",
+    "Brand": "Supernote",
+    "Year": "2024",
+    "Width": 1920,
+    "Height": 2560
+  },
+  {
+    "Name": "Nomad (A6 X2)",
+    "Brand": "Supernote",
+    "Year": "2023",
+    "Width": 1404,
+    "Height": 1872
+  },
+  {
+    "Name": "Fire HD 8",
+    "Brand": "Amazon",
+    "Year": "2024",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire Max 11",
+    "Brand": "Amazon",
+    "Year": "2023",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Fire HD 10",
+    "Brand": "Amazon",
+    "Year": "2023",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Fire HD 8",
+    "Brand": "Amazon",
+    "Year": "2022",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire HD 8 Plus",
+    "Brand": "Amazon",
+    "Year": "2022",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire 7",
+    "Brand": "Amazon",
+    "Year": "2022",
+    "Width": 600,
+    "Height": 1024
+  },
+  {
+    "Name": "Fire HD 10",
+    "Brand": "Amazon",
+    "Year": "2021",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Fire HD 10 Plus",
+    "Brand": "Amazon",
+    "Year": "2021",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Fire HD 8",
+    "Brand": "Amazon",
+    "Year": "2020",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire HD 8 Plus",
+    "Brand": "Amazon",
+    "Year": "2020",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire HD 10",
+    "Brand": "Amazon",
+    "Year": "2019",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Fire 7",
+    "Brand": "Amazon",
+    "Year": "2019",
+    "Width": 600,
+    "Height": 1024
+  },
+  {
+    "Name": "Fire HD 8",
+    "Brand": "Amazon",
+    "Year": "2018",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire HD 10",
+    "Brand": "Amazon",
+    "Year": "2017",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Fire HD 8",
+    "Brand": "Amazon",
+    "Year": "2017",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Fire 7",
+    "Brand": "Amazon",
+    "Year": "2017",
+    "Width": 600,
+    "Height": 1024
+  },
+  {
+    "Name": "iPad Mini (A20 Pro)",
+    "Brand": "Apple",
+    "Year": "2026",
+    "Width": 1512,
+    "Height": 2316,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Air 13-inch (M4)",
+    "Brand": "Apple",
+    "Year": "2026",
+    "Width": 2048,
+    "Height": 2732,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Air 11-inch (M4)",
+    "Brand": "Apple",
+    "Year": "2026",
+    "Width": 1640,
+    "Height": 2360,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Pro 13-inch",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 2064,
+    "Height": 2752,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1668,
+    "Height": 2420,
+    "Popular": true
+  },
+  {
+    "Name": "iPad (A16)",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1640,
+    "Height": 2360,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Air 13-inch (M3)",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 2048,
+    "Height": 2732
+  },
+  {
+    "Name": "iPad Air 11-inch (M3)",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1640,
+    "Height": 2360
+  },
+  {
+    "Name": "iPad Pro 13-inch",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 2064,
+    "Height": 2752,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1668,
+    "Height": 2420,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Mini (A17 Pro)",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1488,
+    "Height": 2266,
+    "Popular": true
+  },
+  {
+    "Name": "iPad Air 13-inch (M2)",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 2048,
+    "Height": 2732
+  },
+  {
+    "Name": "iPad Air 11-inch (M2)",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1640,
+    "Height": 2360
+  },
+  {
+    "Name": "iPad (10th generation)",
+    "Brand": "Apple",
+    "Year": "2022",
+    "Width": 1640,
+    "Height": 2360
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2022",
+    "Width": 1668,
+    "Height": 2388
+  },
+  {
+    "Name": "iPad Air (5th generation)",
+    "Brand": "Apple",
+    "Year": "2022",
+    "Width": 1640,
+    "Height": 2360
+  },
+  {
+    "Name": "iPad Pro 12.9-inch",
+    "Brand": "Apple",
+    "Year": "2015-2022",
+    "Width": 2048,
+    "Height": 2732
+  },
+  {
+    "Name": "iPad (9th generation)",
+    "Brand": "Apple",
+    "Year": "2021",
+    "Width": 1620,
+    "Height": 2160
+  },
+  {
+    "Name": "iPad Mini (6th generation)",
+    "Brand": "Apple",
+    "Year": "2021",
+    "Width": 1488,
+    "Height": 2266
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2021",
+    "Width": 1668,
+    "Height": 2388
+  },
+  {
+    "Name": "iPad (8th generation)",
+    "Brand": "Apple",
+    "Year": "2020",
+    "Width": 1620,
+    "Height": 2160
+  },
+  {
+    "Name": "iPad Air (4th generation)",
+    "Brand": "Apple",
+    "Year": "2020",
+    "Width": 1640,
+    "Height": 2360
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2020",
+    "Width": 1668,
+    "Height": 2388
+  },
+  {
+    "Name": "iPad (7th generation)",
+    "Brand": "Apple",
+    "Year": "2019",
+    "Width": 1620,
+    "Height": 2160
+  },
+  {
+    "Name": "iPad Air (3rd generation)",
+    "Brand": "Apple",
+    "Year": "2019",
+    "Width": 1668,
+    "Height": 2224
+  },
+  {
+    "Name": "iPad Mini (5th generation)",
+    "Brand": "Apple",
+    "Year": "2019",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "iPad Pro 11-inch",
+    "Brand": "Apple",
+    "Year": "2018",
+    "Width": 1668,
+    "Height": 2388
+  },
+  {
+    "Name": "iPad (6th generation)",
+    "Brand": "Apple",
+    "Year": "2018",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "iPad (5th generation)",
+    "Brand": "Apple",
+    "Year": "2017",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "iPad Pro 10.5-inch",
+    "Brand": "Apple",
+    "Year": "2017",
+    "Width": 1668,
+    "Height": 2224
+  },
+  {
+    "Name": "iPad Pro 9.7-inch",
+    "Brand": "Apple",
+    "Year": "2016",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "Pixel Tablet",
+    "Brand": "Google",
+    "Year": "2023",
+    "Width": 1600,
+    "Height": 2560,
+    "Popular": true
+  },
+  {
+    "Name": "MagicPad 2",
+    "Brand": "Honor",
+    "Year": "2024",
+    "Width": 1920,
+    "Height": 3000
+  },
+  {
+    "Name": "MatePad Pro 13.2",
+    "Brand": "Huawei",
+    "Year": "2025",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "MatePad Pro 12.2",
+    "Brand": "Huawei",
+    "Year": "2025",
+    "Width": 1840,
+    "Height": 2800
+  },
+  {
+    "Name": "MatePad Pro 12.2",
+    "Brand": "Huawei",
+    "Year": "2024",
+    "Width": 1840,
+    "Height": 2800
+  },
+  {
+    "Name": "MatePad Pro 13.2",
+    "Brand": "Huawei",
+    "Year": "2023",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "MatePad Air",
+    "Brand": "Huawei",
+    "Year": "2023",
+    "Width": 1840,
+    "Height": 2800
+  },
+  {
+    "Name": "MatePad 11.5",
+    "Brand": "Huawei",
+    "Year": "2023",
+    "Width": 1440,
+    "Height": 2200
+  },
+  {
+    "Name": "MatePad Pro 11",
+    "Brand": "Huawei",
+    "Year": "2022",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MatePad Pro 12.6",
+    "Brand": "Huawei",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MatePad 11",
+    "Brand": "Huawei",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MatePad 10.4",
+    "Brand": "Huawei",
+    "Year": "2020",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "MatePad T8",
+    "Brand": "Huawei",
+    "Year": "2020",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "MatePad Pro 10.8",
+    "Brand": "Huawei",
+    "Year": "2019",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MediaPad M6 10.8",
+    "Brand": "Huawei",
+    "Year": "2019",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MediaPad M6 8.4",
+    "Brand": "Huawei",
+    "Year": "2019",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MediaPad M5 10.8",
+    "Brand": "Huawei",
+    "Year": "2018",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "MediaPad M5 8.4",
+    "Brand": "Huawei",
+    "Year": "2018",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Yoga Tab",
+    "Brand": "Lenovo",
+    "Year": "2025",
+    "Width": 2000,
+    "Height": 3200
+  },
+  {
+    "Name": "Idea Tab Pro",
+    "Brand": "Lenovo",
+    "Year": "2025",
+    "Width": 1840,
+    "Height": 2944
+  },
+  {
+    "Name": "Idea Tab Plus",
+    "Brand": "Lenovo",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Idea Tab",
+    "Brand": "Lenovo",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Legion Tab Gen 3",
+    "Brand": "Lenovo",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560,
+    "Popular": true
+  },
+  {
+    "Name": "Yoga Tab Plus",
+    "Brand": "Lenovo",
+    "Year": "2024",
+    "Width": 1840,
+    "Height": 2944
+  },
+  {
+    "Name": "Tab M11",
+    "Brand": "Lenovo",
+    "Year": "2024",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Tab One",
+    "Brand": "Lenovo",
+    "Year": "2024",
+    "Width": 800,
+    "Height": 1340
+  },
+  {
+    "Name": "Tab P12",
+    "Brand": "Lenovo",
+    "Year": "2023",
+    "Width": 1840,
+    "Height": 2944
+  },
+  {
+    "Name": "Tab Extreme",
+    "Brand": "Lenovo",
+    "Year": "2023",
+    "Width": 1876,
+    "Height": 3000
+  },
+  {
+    "Name": "Tab M9",
+    "Brand": "Lenovo",
+    "Year": "2023",
+    "Width": 800,
+    "Height": 1340
+  },
+  {
+    "Name": "Tab P11 Pro Gen 2",
+    "Brand": "Lenovo",
+    "Year": "2022",
+    "Width": 1536,
+    "Height": 2560
+  },
+  {
+    "Name": "Tab P11 Gen 2",
+    "Brand": "Lenovo",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab M10 Plus Gen 3",
+    "Brand": "Lenovo",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab M10 Gen 3",
+    "Brand": "Lenovo",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Tab M8 Gen 4",
+    "Brand": "Lenovo",
+    "Year": "2022",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Tab P12 Pro",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Yoga Tab 13",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 1350,
+    "Height": 2160
+  },
+  {
+    "Name": "Yoga Tab 11",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab P11 Plus",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab P11 5G",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab M8 Gen 3",
+    "Brand": "Lenovo",
+    "Year": "2021",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Tab P11 Pro",
+    "Brand": "Lenovo",
+    "Year": "2020",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Tab P11",
+    "Brand": "Lenovo",
+    "Year": "2020",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Tab M10 HD Gen 2",
+    "Brand": "Lenovo",
+    "Year": "2020",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Yoga Smart Tab",
+    "Brand": "Lenovo",
+    "Year": "2019",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Surface Pro 12-inch",
+    "Brand": "Microsoft",
+    "Year": "2025",
+    "Width": 1464,
+    "Height": 2196
+  },
+  {
+    "Name": "Surface Pro 11th Edition",
+    "Brand": "Microsoft",
+    "Year": "2024",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "Surface Pro 10",
+    "Brand": "Microsoft",
+    "Year": "2024",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "Surface Go 4",
+    "Brand": "Microsoft",
+    "Year": "2023",
+    "Width": 1280,
+    "Height": 1920
+  },
+  {
+    "Name": "Surface Pro 9",
+    "Brand": "Microsoft",
+    "Year": "2022",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "Surface Pro 8",
+    "Brand": "Microsoft",
+    "Year": "2021",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "Surface Pro 7+",
+    "Brand": "Microsoft",
+    "Year": "2021",
+    "Width": 1824,
+    "Height": 2736
+  },
+  {
+    "Name": "Surface Go 3",
+    "Brand": "Microsoft",
+    "Year": "2021",
+    "Width": 1280,
+    "Height": 1920
+  },
+  {
+    "Name": "Surface Go 2",
+    "Brand": "Microsoft",
+    "Year": "2020",
+    "Width": 1280,
+    "Height": 1920
+  },
+  {
+    "Name": "Surface Pro X",
+    "Brand": "Microsoft",
+    "Year": "2019",
+    "Width": 1920,
+    "Height": 2880
+  },
+  {
+    "Name": "Surface Pro 7",
+    "Brand": "Microsoft",
+    "Year": "2019",
+    "Width": 1824,
+    "Height": 2736
+  },
+  {
+    "Name": "Surface Pro 6",
+    "Brand": "Microsoft",
+    "Year": "2018",
+    "Width": 1824,
+    "Height": 2736
+  },
+  {
+    "Name": "Surface Go",
+    "Brand": "Microsoft",
+    "Year": "2018",
+    "Width": 1200,
+    "Height": 1800
+  },
+  {
+    "Name": "Surface Pro (5th generation)",
+    "Brand": "Microsoft",
+    "Year": "2017",
+    "Width": 1824,
+    "Height": 2736
+  },
+  {
+    "Name": "Pad 3",
+    "Brand": "OnePlus",
+    "Year": "2025",
+    "Width": 2400,
+    "Height": 3392,
+    "Popular": true
+  },
+  {
+    "Name": "Pad Go 2",
+    "Brand": "OnePlus",
+    "Year": "2025",
+    "Width": 1980,
+    "Height": 2800
+  },
+  {
+    "Name": "Pad Lite",
+    "Brand": "OnePlus",
+    "Year": "2025",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Pad 2",
+    "Brand": "OnePlus",
+    "Year": "2024",
+    "Width": 2120,
+    "Height": 3000,
+    "Popular": true
+  },
+  {
+    "Name": "Pad",
+    "Brand": "OnePlus",
+    "Year": "2023",
+    "Width": 2000,
+    "Height": 2800
+  },
+  {
+    "Name": "Pad Go",
+    "Brand": "OnePlus",
+    "Year": "2023",
+    "Width": 1720,
+    "Height": 2408
+  },
+  {
+    "Name": "Galaxy Tab S11 Ultra",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1848,
+    "Height": 2960,
+    "Popular": true
+  },
+  {
+    "Name": "Galaxy Tab S11",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560,
+    "Popular": true
+  },
+  {
+    "Name": "Galaxy Tab S10 FE+",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1800,
+    "Height": 2880
+  },
+  {
+    "Name": "Galaxy Tab S10 FE",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1440,
+    "Height": 2304,
+    "Popular": true
+  },
+  {
+    "Name": "Galaxy Tab S10 Lite",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1320,
+    "Height": 2112
+  },
+  {
+    "Name": "Galaxy Tab A11+",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab A11",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 800,
+    "Height": 1340
+  },
+  {
+    "Name": "Galaxy Tab S10 Ultra",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1848,
+    "Height": 2960,
+    "Popular": true
+  },
+  {
+    "Name": "Galaxy Tab S10+",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1752,
+    "Height": 2800
+  },
+  {
+    "Name": "Galaxy Tab S6 Lite",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Galaxy Tab S9 Ultra",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1848,
+    "Height": 2960,
+    "Popular": true
+  },
+  {
+    "Name": "Galaxy Tab S9+",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1752,
+    "Height": 2800
+  },
+  {
+    "Name": "Galaxy Tab S9",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab S9 FE+",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab S9 FE",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1440,
+    "Height": 2304
+  },
+  {
+    "Name": "Galaxy Tab A9+",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab A9",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 800,
+    "Height": 1340
+  },
+  {
+    "Name": "Galaxy Tab S8 Ultra",
+    "Brand": "Samsung",
+    "Year": "2022",
+    "Width": 1848,
+    "Height": 2960
+  },
+  {
+    "Name": "Galaxy Tab S8+",
+    "Brand": "Samsung",
+    "Year": "2022",
+    "Width": 1752,
+    "Height": 2800
+  },
+  {
+    "Name": "Galaxy Tab S8",
+    "Brand": "Samsung",
+    "Year": "2022",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab S6 Lite",
+    "Brand": "Samsung",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Galaxy Tab A8",
+    "Brand": "Samsung",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab S7 FE",
+    "Brand": "Samsung",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab A7 Lite",
+    "Brand": "Samsung",
+    "Year": "2021",
+    "Width": 800,
+    "Height": 1340
+  },
+  {
+    "Name": "Galaxy Tab S7+",
+    "Brand": "Samsung",
+    "Year": "2020",
+    "Width": 1752,
+    "Height": 2800
+  },
+  {
+    "Name": "Galaxy Tab S7",
+    "Brand": "Samsung",
+    "Year": "2020",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab S6 Lite",
+    "Brand": "Samsung",
+    "Year": "2020",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Galaxy Tab A7",
+    "Brand": "Samsung",
+    "Year": "2020",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Galaxy Tab A 8.4",
+    "Brand": "Samsung",
+    "Year": "2020",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab S6",
+    "Brand": "Samsung",
+    "Year": "2019",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab S5e",
+    "Brand": "Samsung",
+    "Year": "2019",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab A 10.1",
+    "Brand": "Samsung",
+    "Year": "2019",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab A 8.0",
+    "Brand": "Samsung",
+    "Year": "2019",
+    "Width": 800,
+    "Height": 1280
+  },
+  {
+    "Name": "Galaxy Tab S4",
+    "Brand": "Samsung",
+    "Year": "2018",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Galaxy Tab A 10.5",
+    "Brand": "Samsung",
+    "Year": "2018",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Galaxy Tab S3",
+    "Brand": "Samsung",
+    "Year": "2017",
+    "Width": 1536,
+    "Height": 2048
+  },
+  {
+    "Name": "Pad 8 Pro",
+    "Brand": "Xiaomi",
+    "Year": "2025",
+    "Width": 2136,
+    "Height": 3200
+  },
+  {
+    "Name": "Pad 8",
+    "Brand": "Xiaomi",
+    "Year": "2025",
+    "Width": 2136,
+    "Height": 3200,
+    "Popular": true
+  },
+  {
+    "Name": "Pad Mini",
+    "Brand": "Xiaomi",
+    "Year": "2025",
+    "Width": 1880,
+    "Height": 3008
+  },
+  {
+    "Name": "Redmi Pad 2 Pro",
+    "Brand": "Xiaomi",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Redmi Pad 2",
+    "Brand": "Xiaomi",
+    "Year": "2025",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Pad 7 Pro",
+    "Brand": "Xiaomi",
+    "Year": "2024",
+    "Width": 2136,
+    "Height": 3200
+  },
+  {
+    "Name": "Pad 7",
+    "Brand": "Xiaomi",
+    "Year": "2024",
+    "Width": 2136,
+    "Height": 3200,
+    "Popular": true
+  },
+  {
+    "Name": "Pad 6S Pro 12.4",
+    "Brand": "Xiaomi",
+    "Year": "2024",
+    "Width": 2032,
+    "Height": 3048
+  },
+  {
+    "Name": "Redmi Pad Pro",
+    "Brand": "Xiaomi",
+    "Year": "2024",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Pad 6 Max 14",
+    "Brand": "Xiaomi",
+    "Year": "2023",
+    "Width": 1800,
+    "Height": 2880
+  },
+  {
+    "Name": "Pad 6 Pro",
+    "Brand": "Xiaomi",
+    "Year": "2023",
+    "Width": 1800,
+    "Height": 2880
+  },
+  {
+    "Name": "Pad 6",
+    "Brand": "Xiaomi",
+    "Year": "2023",
+    "Width": 1800,
+    "Height": 2880
+  },
+  {
+    "Name": "Redmi Pad SE",
+    "Brand": "Xiaomi",
+    "Year": "2023",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Pad 5 Pro 12.4",
+    "Brand": "Xiaomi",
+    "Year": "2022",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Redmi Pad",
+    "Brand": "Xiaomi",
+    "Year": "2022",
+    "Width": 1200,
+    "Height": 2000
+  },
+  {
+    "Name": "Pad 5 Pro",
+    "Brand": "Xiaomi",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Pad 5",
+    "Brand": "Xiaomi",
+    "Year": "2021",
+    "Width": 1600,
+    "Height": 2560
+  },
+  {
+    "Name": "Mi Pad 4 Plus",
+    "Brand": "Xiaomi",
+    "Year": "2018",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Mi Pad 4",
+    "Brand": "Xiaomi",
+    "Year": "2018",
+    "Width": 1200,
+    "Height": 1920
+  },
+  {
+    "Name": "Pixel 10 Pro Fold",
+    "Brand": "Google",
+    "Year": "2025",
+    "Width": 2076,
+    "Height": 2152
+  },
+  {
+    "Name": "Pixel 9 Pro Fold",
+    "Brand": "Google",
+    "Year": "2024",
+    "Width": 2076,
+    "Height": 2152
+  },
+  {
+    "Name": "Pixel Fold",
+    "Brand": "Google",
+    "Year": "2023",
+    "Width": 1840,
+    "Height": 2208
+  },
+  {
+    "Name": "Magic V5",
+    "Brand": "Honor",
+    "Year": "2025",
+    "Width": 2172,
+    "Height": 2352
+  },
+  {
+    "Name": "Magic V3",
+    "Brand": "Honor",
+    "Year": "2024",
+    "Width": 2156,
+    "Height": 2344
+  },
+  {
+    "Name": "Open",
+    "Brand": "OnePlus",
+    "Year": "2023",
+    "Width": 2268,
+    "Height": 2440
+  },
+  {
+    "Name": "Find N5",
+    "Brand": "OPPO",
+    "Year": "2025",
+    "Width": 2248,
+    "Height": 2480
+  },
+  {
+    "Name": "Find N3",
+    "Brand": "OPPO",
+    "Year": "2023",
+    "Width": 2268,
+    "Height": 2440
+  },
+  {
+    "Name": "Galaxy Z Fold7",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1968,
+    "Height": 2184
+  },
+  {
+    "Name": "Galaxy Z Fold6",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1856,
+    "Height": 2160
+  },
+  {
+    "Name": "Galaxy Z Fold5",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1812,
+    "Height": 2176
+  },
+  {
+    "Name": "X Fold5",
+    "Brand": "vivo",
+    "Year": "2025",
+    "Width": 2200,
+    "Height": 2480
+  },
+  {
+    "Name": "X Fold3 Pro",
+    "Brand": "vivo",
+    "Year": "2024",
+    "Width": 2200,
+    "Height": 2480
+  },
+  {
+    "Name": "X Fold3",
+    "Brand": "vivo",
+    "Year": "2024",
+    "Width": 2200,
+    "Height": 2480
+  },
+  {
+    "Name": "iPhone 17e",
+    "Brand": "Apple",
+    "Year": "2026",
+    "Width": 1170,
+    "Height": 2532
+  },
+  {
+    "Name": "iPhone 17 Pro Max",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1320,
+    "Height": 2868
+  },
+  {
+    "Name": "iPhone 17 Pro",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1206,
+    "Height": 2622
+  },
+  {
+    "Name": "iPhone Air",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1260,
+    "Height": 2736
+  },
+  {
+    "Name": "iPhone 17",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1206,
+    "Height": 2622
+  },
+  {
+    "Name": "iPhone 16e",
+    "Brand": "Apple",
+    "Year": "2025",
+    "Width": 1170,
+    "Height": 2532
+  },
+  {
+    "Name": "iPhone 16 Pro Max",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1320,
+    "Height": 2868
+  },
+  {
+    "Name": "iPhone 16 Pro",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1206,
+    "Height": 2622
+  },
+  {
+    "Name": "iPhone 16 Plus",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1290,
+    "Height": 2796
+  },
+  {
+    "Name": "iPhone 16",
+    "Brand": "Apple",
+    "Year": "2024",
+    "Width": 1179,
+    "Height": 2556
+  },
+  {
+    "Name": "iPhone 15 Pro Max",
+    "Brand": "Apple",
+    "Year": "2023",
+    "Width": 1290,
+    "Height": 2796
+  },
+  {
+    "Name": "iPhone 15 Pro",
+    "Brand": "Apple",
+    "Year": "2023",
+    "Width": 1179,
+    "Height": 2556
+  },
+  {
+    "Name": "iPhone 15 Plus",
+    "Brand": "Apple",
+    "Year": "2023",
+    "Width": 1290,
+    "Height": 2796
+  },
+  {
+    "Name": "iPhone 15",
+    "Brand": "Apple",
+    "Year": "2023",
+    "Width": 1179,
+    "Height": 2556
+  },
+  {
+    "Name": "Pixel 10a",
+    "Brand": "Google",
+    "Year": "2026",
+    "Width": 1080,
+    "Height": 2424
+  },
+  {
+    "Name": "Pixel 10 Pro XL",
+    "Brand": "Google",
+    "Year": "2025",
+    "Width": 1344,
+    "Height": 2992
+  },
+  {
+    "Name": "Pixel 10 Pro",
+    "Brand": "Google",
+    "Year": "2025",
+    "Width": 1280,
+    "Height": 2856
+  },
+  {
+    "Name": "Pixel 10",
+    "Brand": "Google",
+    "Year": "2025",
+    "Width": 1080,
+    "Height": 2424
+  },
+  {
+    "Name": "Pixel 9a",
+    "Brand": "Google",
+    "Year": "2025",
+    "Width": 1080,
+    "Height": 2424
+  },
+  {
+    "Name": "Pixel 9 Pro XL",
+    "Brand": "Google",
+    "Year": "2024",
+    "Width": 1344,
+    "Height": 2992
+  },
+  {
+    "Name": "Pixel 9 Pro",
+    "Brand": "Google",
+    "Year": "2024",
+    "Width": 1280,
+    "Height": 2856
+  },
+  {
+    "Name": "Pixel 9",
+    "Brand": "Google",
+    "Year": "2024",
+    "Width": 1080,
+    "Height": 2424
+  },
+  {
+    "Name": "Pixel 8a",
+    "Brand": "Google",
+    "Year": "2024",
+    "Width": 1080,
+    "Height": 2400
+  },
+  {
+    "Name": "Pixel 8 Pro",
+    "Brand": "Google",
+    "Year": "2023",
+    "Width": 1344,
+    "Height": 2992
+  },
+  {
+    "Name": "Pixel 8",
+    "Brand": "Google",
+    "Year": "2023",
+    "Width": 1080,
+    "Height": 2400
+  },
+  {
+    "Name": "Galaxy S25 Ultra",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1440,
+    "Height": 3120
+  },
+  {
+    "Name": "Galaxy S25 Edge",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1440,
+    "Height": 3120
+  },
+  {
+    "Name": "Galaxy S25+",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1440,
+    "Height": 3120
+  },
+  {
+    "Name": "Galaxy S25",
+    "Brand": "Samsung",
+    "Year": "2025",
+    "Width": 1080,
+    "Height": 2340
+  },
+  {
+    "Name": "Galaxy S24 Ultra",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1440,
+    "Height": 3120
+  },
+  {
+    "Name": "Galaxy S24+",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1440,
+    "Height": 3120
+  },
+  {
+    "Name": "Galaxy S24",
+    "Brand": "Samsung",
+    "Year": "2024",
+    "Width": 1080,
+    "Height": 2340
+  },
+  {
+    "Name": "Galaxy S23 Ultra",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1440,
+    "Height": 3088
+  },
+  {
+    "Name": "Galaxy S23+",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1080,
+    "Height": 2340
+  },
+  {
+    "Name": "Galaxy S23",
+    "Brand": "Samsung",
+    "Year": "2023",
+    "Width": 1080,
+    "Height": 2340
+  },
+  {
+    "Name": "PC Monitor 5K",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 2880,
+    "Height": 5120,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 4K UHD",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 2160,
+    "Height": 3840,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 1440p Ultrawide",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 1440,
+    "Height": 3440,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 1600p WQXGA (16:10)",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 1600,
+    "Height": 2560,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 2K QHD",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 1440,
+    "Height": 2560,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 1200p WUXGA (16:10)",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 1200,
+    "Height": 1920,
+    "Popular": true
+  },
+  {
+    "Name": "PC Monitor 1080p HD",
+    "Brand": "Generic",
+    "Year": "",
+    "Width": 1080,
+    "Height": 1920,
+    "Popular": true
+  }
+]

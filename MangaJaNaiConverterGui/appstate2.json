@@ -1,8 +1,5 @@
 {
   "$type": "MangaJaNaiConverterGui.ViewModels.MainWindowViewModel, MangaJaNaiConverterGui",
-  "DisplayDeviceMap": {
-    "$type": "Avalonia.Collections.AvaloniaDictionary`2[[System.String, System.Private.CoreLib],[MangaJaNaiConverterGui.ViewModels.ReaderDevice, MangaJaNaiConverterGui]], Avalonia.Base"
-  },
   "AutoUpdateEnabled": true,
   "SelectedDeviceIndex": 0,
   "Workflows": {
