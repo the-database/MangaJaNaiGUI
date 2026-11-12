@@ -26,6 +26,8 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <!-- The Fit to Display device list (ReaderDevice.All). -->
+    <EmbeddedResource Include="devices.json" LogicalName="MangaJaNaiConverterGui.devices.json" />
   </ItemGroup>
 
   <ItemGroup>
