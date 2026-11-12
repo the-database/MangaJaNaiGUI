@@ -233,14 +233,15 @@ namespace MangaJaNaiConverterGui.ViewModels
         public static (int, int)? SizeOf(string? text) => SizeOf(All, text);
 
         // A monitor plugged into this computer, listed like any device (not pinned first), in the list's
-        // "Name (details)" style. Labeled by what people recognize: primary or secondary and its size as
-        // it's set up now (rotation included, physical pixels); the model name, which few know, comes
-        // last as a hint: "Primary Monitor (3840 × 2160, 27M2V)". No "Monitor 1/2": the screen order
-        // here needn't match Windows' numbering. The size is in the label, so a saved pick keeps it after
-        // the monitor is unplugged.
-        public static ReaderDevice ConnectedMonitor(string? name, bool primary, int width, int height)
+        // "Name (details)" style. Labeled by what people recognize: primary or secondary and its size;
+        // the model name, which few know, comes last as a hint: "Primary Monitor (3840 × 2160, 27M2V)".
+        // No "Monitor 1/2": the screen order needn't match the OS's numbering. The size is in the label,
+        // so a saved pick keeps it after the monitor is unplugged.
+        // primary null: not known (Linux, read from the kernel), so just "Monitor (1920 × 1080, ASUS VS247)",
+        // at the panel's native size as the kernel gives it, rotation unknown.
+        public static ReaderDevice ConnectedMonitor(string? name, bool? primary, int width, int height)
         {
-            var which = primary ? "Primary Monitor" : "Secondary Monitor";
+            var which = primary switch { true => "Primary Monitor", false => "Secondary Monitor", null => "Monitor" };
             var details = string.IsNullOrWhiteSpace(name) ? $"{width} × {height}" : $"{width} × {height}, {name.Trim()}";
             var label = $"{which} ({details})";
             return new ReaderDevice
@@ -255,7 +256,10 @@ namespace MangaJaNaiConverterGui.ViewModels
             };
         }
 
-        public static bool IsConnectedMonitor(string? text) =>
+        // A monitor whose size is as it's rotated now (Primary/Secondary, from the display server), so
+        // picking it can set the orientation. Not the kernel's "Monitor (…)": that's the native mode,
+        // which doesn't say how the monitor is turned.
+        public static bool IsRotatedMonitor(string? text) =>
             ConnectedMonitorPattern().IsMatch(text ?? "");
 
         [GeneratedRegex(@"^\s*(primary|secondary) monitor \(", RegexOptions.IgnoreCase)]
