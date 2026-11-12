@@ -232,20 +232,17 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         public static (int, int)? SizeOf(string? text) => SizeOf(All, text);
 
-        // A monitor plugged into this computer, listed like any device (not pinned first). Labeled by what
-        // people recognize: main or other, its size as it's set up now (rotation included, physical
-        // pixels) and orientation; the model name, which few know, comes last as a hint:
-        // "Main monitor · 3840 × 2160 landscape · 27M2V". No "Monitor 1/2": the screen order here
-        // needn't match Windows' numbering. The size is in the label, so a saved pick keeps it after the
-        // monitor is unplugged.
-        public static ReaderDevice ConnectedMonitor(string? name, bool main, int width, int height)
+        // A monitor plugged into this computer, listed like any device (not pinned first), in the list's
+        // "Name (details)" style. Labeled by what people recognize: primary or secondary and its size as
+        // it's set up now (rotation included, physical pixels); the model name, which few know, comes
+        // last as a hint: "Primary Monitor (3840 × 2160, 27M2V)". No "Monitor 1/2": the screen order
+        // here needn't match Windows' numbering. The size is in the label, so a saved pick keeps it after
+        // the monitor is unplugged.
+        public static ReaderDevice ConnectedMonitor(string? name, bool primary, int width, int height)
         {
-            var which = main ? "Main monitor" : "Other monitor";
-            var label = $"{which} · {width} × {height} {(height > width ? "portrait" : "landscape")}";
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                label += $" · {name.Trim()}";
-            }
+            var which = primary ? "Primary Monitor" : "Secondary Monitor";
+            var details = string.IsNullOrWhiteSpace(name) ? $"{width} × {height}" : $"{width} × {height}, {name.Trim()}";
+            var label = $"{which} ({details})";
             return new ReaderDevice
             {
                 Brand = "",
@@ -261,7 +258,7 @@ namespace MangaJaNaiConverterGui.ViewModels
         public static bool IsConnectedMonitor(string? text) =>
             ConnectedMonitorPattern().IsMatch(text ?? "");
 
-        [GeneratedRegex(@"^\s*(main|other) monitor ·", RegexOptions.IgnoreCase)]
+        [GeneratedRegex(@"^\s*(primary|secondary) monitor \(", RegexOptions.IgnoreCase)]
         private static partial Regex ConnectedMonitorPattern();
 
         [GeneratedRegex(@"(?<!\d)(\d{2,5})\s*[x×X*]\s*(\d{2,5})(?!\d)")]
