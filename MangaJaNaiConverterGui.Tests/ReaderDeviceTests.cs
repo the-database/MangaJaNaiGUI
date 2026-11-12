@@ -244,9 +244,9 @@ namespace MangaJaNaiConverterGui.Tests
         [Fact]
         public void AConnectedMonitorIsLabeledByWhatPeopleRecognize()
         {
-            Assert.Equal("Main monitor · 3840 × 2160 landscape · 27M2V", MainMonitor.ToString());
-            Assert.Equal("Other monitor · 2160 × 3840 portrait · DELL S2725QS", OtherMonitor.ToString());
-            Assert.Equal("Other monitor · 1920 × 1080 landscape", ReaderDevice.ConnectedMonitor(" ", false, 1920, 1080).ToString());
+            Assert.Equal("Primary Monitor (3840 × 2160, 27M2V)", MainMonitor.ToString());
+            Assert.Equal("Secondary Monitor (2160 × 3840, DELL S2725QS)", OtherMonitor.ToString());
+            Assert.Equal("Secondary Monitor (1920 × 1080)", ReaderDevice.ConnectedMonitor(" ", false, 1920, 1080).ToString());
         }
 
         // Listed like any device: in the empty list after the devices with a year, not pinned first.
@@ -259,9 +259,9 @@ namespace MangaJaNaiConverterGui.Tests
         }
 
         [Theory]
-        [InlineData("main monitor", "Main monitor · 3840 × 2160 landscape · 27M2V")]
-        [InlineData("dell", "Other monitor · 2160 × 3840 portrait · DELL S2725QS")]
-        [InlineData("monitor portrait", "Other monitor · 2160 × 3840 portrait · DELL S2725QS")]
+        [InlineData("primary monitor", "Primary Monitor (3840 × 2160, 27M2V)")]
+        [InlineData("secondary", "Secondary Monitor (2160 × 3840, DELL S2725QS)")]
+        [InlineData("dell", "Secondary Monitor (2160 × 3840, DELL S2725QS)")]
         public void ConnectedMonitorsAreFoundLikeAnyDevice(string text, string first) =>
             Assert.Equal(first, ReaderDevice.Search([.. Devices, MainMonitor, OtherMonitor], text)[0].ToString());
 
