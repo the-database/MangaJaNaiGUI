@@ -276,6 +276,18 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Equal((2160, 3840), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
         }
 
+        // Linux: read from the kernel, so no primary, the native size, and rotation unknown.
+        [Fact]
+        public void AKernelMonitorIsJustMonitorAndLeavesTheOrientationAlone()
+        {
+            var monitor = ReaderDevice.ConnectedMonitor("ASUS VS247", null, 1920, 1080);
+            Assert.Equal("Monitor (1920 × 1080, ASUS VS247)", monitor.ToString());
+            var workflow = new UpscaleWorkflow { DisplayDevice = monitor.ToString() };
+            Assert.True(workflow.DisplayPortraitSelected);
+            Assert.Equal((1080, 1920), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
+            Assert.Equal("Monitor (1920 × 1080, ASUS VS247)", ReaderDevice.Search([.. Devices, monitor], "asus")[0].ToString());
+        }
+
         // The orientation the user chose afterwards wins on load, and the size outlives the monitor.
         [Fact]
         public void ASavedConnectedMonitorKeepsItsSizeAndChosenOrientation()

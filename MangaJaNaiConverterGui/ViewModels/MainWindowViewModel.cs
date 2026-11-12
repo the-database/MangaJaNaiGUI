@@ -3250,7 +3250,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 _displaySideB = size?.Item2 ?? 0;
                 // A connected monitor picked: match how it's rotated now. (Loading a saved workflow
                 // sets the saved orientation after this.)
-                if (value != _displayDevice && size is (int w, int h) && ReaderDevice.IsConnectedMonitor(value))
+                if (value != _displayDevice && size is (int w, int h) && ReaderDevice.IsRotatedMonitor(value))
                 {
                     DisplayPortraitSelected = h > w;
                 }
