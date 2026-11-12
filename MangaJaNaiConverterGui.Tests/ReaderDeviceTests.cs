@@ -236,6 +236,57 @@ namespace MangaJaNaiConverterGui.Tests
         public void AnUnknownNameHasNoSize() =>
             Assert.Equal(0, new UpscaleWorkflow { DisplayDevice = "Some Tablet" }.DisplayDeviceWidth);
 
+        // ---- connected monitors -----------------------------------------------------------------------
+
+        static readonly ReaderDevice MainMonitor = ReaderDevice.ConnectedMonitor("27M2V", true, 3840, 2160);
+        static readonly ReaderDevice OtherMonitor = ReaderDevice.ConnectedMonitor("DELL S2725QS", false, 2160, 3840);
+
+        [Fact]
+        public void AConnectedMonitorIsLabeledByWhatPeopleRecognize()
+        {
+            Assert.Equal("Your main monitor · 3840 × 2160 landscape · 27M2V", MainMonitor.ToString());
+            Assert.Equal("Your other monitor · 2160 × 3840 portrait · DELL S2725QS", OtherMonitor.ToString());
+            Assert.Equal("Your other monitor · 1920 × 1080 landscape", ReaderDevice.ConnectedMonitor(" ", false, 1920, 1080).ToString());
+        }
+
+        // Listed like any device: in the empty list after the devices with a year, not pinned first.
+        [Fact]
+        public void ConnectedMonitorsAreNotPinnedFirst()
+        {
+            var shown = ReaderDevice.Search([.. Devices, MainMonitor, OtherMonitor], "").Select(d => d.ToString()).ToList();
+            Assert.Equal("Apple iPad Pro 13-inch (2024)", shown[0]);
+            Assert.Equal([MainMonitor.ToString(), OtherMonitor.ToString()], shown.TakeLast(2));
+        }
+
+        [Theory]
+        [InlineData("main monitor", "Your main monitor · 3840 × 2160 landscape · 27M2V")]
+        [InlineData("dell", "Your other monitor · 2160 × 3840 portrait · DELL S2725QS")]
+        [InlineData("monitor portrait", "Your other monitor · 2160 × 3840 portrait · DELL S2725QS")]
+        public void ConnectedMonitorsAreFoundLikeAnyDevice(string text, string first) =>
+            Assert.Equal(first, ReaderDevice.Search([.. Devices, MainMonitor, OtherMonitor], text)[0].ToString());
+
+        [Fact]
+        public void PickingAConnectedMonitorMatchesItsRotation()
+        {
+            var workflow = new UpscaleWorkflow { DisplayDevice = MainMonitor.ToString() };
+            Assert.False(workflow.DisplayPortraitSelected);
+            Assert.Equal((3840, 2160), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
+            workflow.DisplayDevice = OtherMonitor.ToString();
+            Assert.True(workflow.DisplayPortraitSelected);
+            Assert.Equal((2160, 3840), (workflow.DisplayDeviceWidth, workflow.DisplayDeviceHeight));
+        }
+
+        // The orientation the user chose afterwards wins on load, and the size outlives the monitor.
+        [Fact]
+        public void ASavedConnectedMonitorKeepsItsSizeAndChosenOrientation()
+        {
+            var workflow = new UpscaleWorkflow { DisplayDevice = OtherMonitor.ToString() };
+            workflow.DisplayPortraitSelected = false;
+            var back = JsonConvert.DeserializeObject<UpscaleWorkflow>(Reload(workflow), NewtonsoftJsonSuspensionDriver.Settings)!;
+            Assert.False(back.DisplayPortraitSelected);
+            Assert.Equal((3840, 2160), (back.DisplayDeviceWidth, back.DisplayDeviceHeight));
+        }
+
         // A device the list no longer has keeps the size it was saved with (the old server's devices).
         [Fact]
         public void ASavedSizeSurvivesForADeviceNoLongerListed()
