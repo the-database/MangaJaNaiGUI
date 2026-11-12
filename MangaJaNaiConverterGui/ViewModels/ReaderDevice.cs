@@ -23,8 +23,16 @@ namespace MangaJaNaiConverterGui.ViewModels
         public int LatestYear =>
             YearPattern().Matches(Year ?? "").Select(m => int.Parse(m.Value)).DefaultIfEmpty(0).Max();
 
+        // Set only for a connected monitor, whose label isn't brand + name + year.
+        private string? _label;
+
         public override string ToString()
         {
+            if (_label != null)
+            {
+                return _label;
+            }
+
             List<string> parts = [];
 
             if (!string.IsNullOrWhiteSpace(Brand))
@@ -223,6 +231,38 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
 
         public static (int, int)? SizeOf(string? text) => SizeOf(All, text);
+
+        // A monitor plugged into this computer, listed like any device (not pinned first). Labeled by what
+        // people recognize: main or other, its size as it's set up now (rotation included, physical
+        // pixels) and orientation; the model name, which few know, comes last as a hint:
+        // "Your main monitor · 3840 × 2160 landscape · 27M2V". No "Monitor 1/2": the screen order here
+        // needn't match Windows' numbering. The size is in the label, so a saved pick keeps it after the
+        // monitor is unplugged.
+        public static ReaderDevice ConnectedMonitor(string? name, bool main, int width, int height)
+        {
+            var which = main ? "main monitor" : "other monitor";
+            var label = $"Your {which} · {width} × {height} {(height > width ? "portrait" : "landscape")}";
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                label += $" · {name.Trim()}";
+            }
+            return new ReaderDevice
+            {
+                Brand = "Your",
+                Name = which,
+                Year = "",
+                Width = Math.Min(width, height),
+                Height = Math.Max(width, height),
+                Popular = true,
+                _label = label,
+            };
+        }
+
+        public static bool IsConnectedMonitor(string? text) =>
+            ConnectedMonitorPattern().IsMatch(text ?? "");
+
+        [GeneratedRegex(@"^\s*Your (main|other) monitor\b", RegexOptions.IgnoreCase)]
+        private static partial Regex ConnectedMonitorPattern();
 
         [GeneratedRegex(@"(?<!\d)(\d{2,5})\s*[x×X*]\s*(\d{2,5})(?!\d)")]
         private static partial Regex SizePattern();

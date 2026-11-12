@@ -2426,10 +2426,16 @@ namespace MangaJaNaiConverterGui.ViewModels
         // Avalonia 12 compiled bindings only convert zero/one-parameter methods to delegates.
         public Func<string?, CancellationToken, Task<IEnumerable<object>>> DevicesPopulator => PopulateDevicesAsync;
 
-        // Searches the device list bundled with the app; no network. The devices picked in any
-        // workflow come first before anything is typed.
+        // The monitors connected right now; the window supplies them (it knows the screens).
+        public Func<IReadOnlyList<ReaderDevice>>? ConnectedMonitors { get; set; }
+
+        // Searches the device list bundled with the app, plus the connected monitors; no network.
+        // The devices picked in any workflow come first before anything is typed.
         public Task<IEnumerable<object>> PopulateDevicesAsync(string? searchText, CancellationToken cancellationToken) =>
-            Task.FromResult<IEnumerable<object>>(ReaderDevice.Search(ReaderDevice.All, searchText, Workflows?.Select(w => w?.DisplayDevice)));
+            Task.FromResult<IEnumerable<object>>(ReaderDevice.Search(
+                ReaderDevice.All.Concat(ConnectedMonitors?.Invoke() ?? []),
+                searchText,
+                Workflows?.Select(w => w?.DisplayDevice)));
 
         // Called once for the app's state (not every view model instance): check now, then
         // periodically, downloading in the background while Auto Update is on.
@@ -3242,6 +3248,12 @@ namespace MangaJaNaiConverterGui.ViewModels
                 var size = ReaderDevice.SizeOf(value);
                 _displaySideA = size?.Item1 ?? 0;
                 _displaySideB = size?.Item2 ?? 0;
+                // A connected monitor picked: match how it's rotated now. (Loading a saved workflow
+                // sets the saved orientation after this.)
+                if (value != _displayDevice && size is (int w, int h) && ReaderDevice.IsConnectedMonitor(value))
+                {
+                    DisplayPortraitSelected = h > w;
+                }
                 this.RaiseAndSetIfChanged(ref _displayDevice, value);
                 this.RaisePropertyChanged(nameof(DisplayDeviceWidth));
                 this.RaisePropertyChanged(nameof(DisplayDeviceHeight));
