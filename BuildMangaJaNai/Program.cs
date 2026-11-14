@@ -90,16 +90,16 @@ var trtDebSha256 = new Dictionary<string, string>
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
 // Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
-const string AjiVersion        = "v0.27.0";
-const string AjiSha256Win      = "1ae2a0d16be2a660d8197fe4f64e8be7cf7637d7842b19994636e42309ab17b2";
+const string AjiVersion        = "v0.28.0";
+const string AjiSha256Win      = "cf5c8e9ba2fa31fb2ac486e261578ae0f94912e50ec0326d20dda25fdfbb818c";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). aji_trtrtx.dll stays in the core (it must match aji.dll); the
 // runtime becomes the trt-rtx pack.
-const string AjiTrtRtxSha256Win = "acdf52d9c63f34b1353f08b0511985ddb755bd61793e9a1ae65cbc3c5ba18625";
+const string AjiTrtRtxSha256Win = "4e35677dee83610b85764b87b1d178064d34f417f7ac9b1d73623855f5cf0d0b";
 // aji_trtrtx.dll alone (store builds): the same release's aji-trtrtx-backend-windows-x64.zip.
-const string AjiTrtRtxBackendSha256Win = "13417fd2a061bc4539ea2509c1ced5023b947d561431a9b527c718c89a00ca35";
+const string AjiTrtRtxBackendSha256Win = "2659fafadc699eedef2b3af3e91dc55f7a57ba0d726bd1166865920f400f0325";
 // Linux: libaji.so + libaji_trt.so (TensorRT only).
-const string AjiSha256Linux    = "044a9cc652fa7660218597c1faa01b7c0abdd97f10a644b0250a0a42321ac0f5";
+const string AjiSha256Linux    = "f00aeca5702a43cb519b6b7049444506651b839729e684f8959b7bf15687aed9";
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs, TensorRT-RTX's runtime and the default models, installed once per user into
 // the shared pack store by aji-runtime (the updater's store mode). The manifest carries the platform's
