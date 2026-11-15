@@ -89,7 +89,7 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.21.0 tiles on the GPU (TensorRT/TensorRT-RTX), speeds up DirectML's tiling, and fixes tile seams in
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
 // v0.28.0 adds aji_img_memory_get; v0.29.0 runs the shipped models on native kernels on RTX 30 and newer (no engine build; AJI_NATIVE=off disables) and adds aji_img_native_probe.
-/ Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
+// Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
 const string AjiVersion        = "v0.29.0";
 const string AjiSha256Win      = "3e13cb8a9493a3d25becec0324ff421f3b329d60a9bf745e43aa5997685c83da";
@@ -130,8 +130,8 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
 // v0.6.2 adds --control stdin, which Pause uses to unload the models (freeing the GPU memory).
-/// v0.9.0 sizes tiles to the GPU's free memory by default (tile Auto) and measures native models with libaji's probe.
-/ v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
+// v0.9.0 sizes tiles to the GPU's free memory by default (tile Auto) and measures native models with libaji's probe.
+// v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
 // v0.5.0 writes JPEG XL (JxlSelected in the settings), which the GUI's JPEG XL format needs.
 // v0.2.0: images with uniform transparency are upscaled once instead of twice, varying transparency gets
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
