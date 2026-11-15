@@ -306,6 +306,14 @@
               <TextBlock FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource SystemFillColorCautionBrush}" Text="TensorRT-RTX failed; using TensorRT" />
             </StackPanel>
 
+            <!-- Whether this run's models ran on native GPU kernels (the CLI's NATIVE lines) -->
+            <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
+                        IsVisible="{Binding ShowNativeStatus}" ToolTip.Tip="{Binding NativeStatusTooltip}">
+              <materialIcons:MaterialIcon Kind="Chip" Width="12" Height="12" IsVisible="{Binding NativeStatusAllNative}" />
+              <materialIcons:MaterialIcon Kind="InformationOutline" Width="12" Height="12" IsVisible="{Binding !NativeStatusAllNative}" />
+              <TextBlock FontSize="10" VerticalAlignment="Center" MaxWidth="360" TextTrimming="CharacterEllipsis" Text="{Binding NativeStatusText}" />
+            </StackPanel>
+
             <!-- A model's precision is slow or can't run here (the CLI's latest HINT line this run) -->
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="4" Margin="10,0,0,0" VerticalAlignment="Center"
                         IsVisible="{Binding ShowModelHint}" ToolTip.Tip="{Binding ModelHintText}">

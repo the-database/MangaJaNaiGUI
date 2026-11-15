@@ -133,6 +133,7 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
 // v0.6.2 adds --control stdin, which Pause uses to unload the models (freeing the GPU memory).
+// v0.9.2 prints NATIVE / NATIVE_UNUSED / NATIVE_OFF lines: whether each model runs on native kernels.
 // v0.9.1 bundles libaji v0.31.0 (SPAN/Compact on the native kernels).
 // v0.9.0 sizes tiles to the GPU's free memory by default (tile Auto) and measures native models with libaji's probe.
 // v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
@@ -141,7 +142,7 @@ const string CliRepo           = "the-database/MangaJaNaiCLI";
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
 // --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
 // it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
-const string CliVersion        = "v0.9.1";
+const string CliVersion        = "v0.9.2";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
 const string CliSha256         = "5b8f8c484080b1affff7a48037e8af48f2bc2308348dca95b263e4f1a4a02bf8";
 // Linux: the release's mangajanai-linux-x64.tar.zst. Its `mangajanai` is the same program as
