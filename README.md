@@ -12,6 +12,8 @@ Download and run `MangaJaNaiGUI-Setup-<version>.exe` from the [latest release](h
 
 With **Auto Update** on (App Settings), updates download in the background and install when you close the app.
 
+The portable zip (`MangaJaNaiGUI-full-package-<version>.zip`) keeps the TensorRT runtime and the models inside its own folder, so you can move the folder or copy it to another PC and it keeps working. The installed version keeps them in a folder shared with the other JaNai apps. You can change where they go in App Settings > Storage.
+
 ### Linux
 Download either the AppImage or the `linux-x64.tar.gz` from the [latest release](https://github.com/the-database/MangaJaNaiGUI/releases/latest). An NVIDIA GPU and driver are required; Linux runs the TensorRT backend only.
 - **Tarball**: extract it anywhere and run `./install.sh` from inside the extracted folder. This adds a menu entry and installs the components for your GPU. The folder stays in place and updates itself in-app.
