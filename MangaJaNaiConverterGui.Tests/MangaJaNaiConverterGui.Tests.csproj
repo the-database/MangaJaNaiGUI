@@ -18,4 +18,9 @@
   <ItemGroup>
     <ProjectReference Include="..\MangaJaNaiConverterGui\MangaJaNaiConverterGui.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- The updater's copy and pack-store rules (it is a single-file exe, so they're compiled in here). -->
+    <Compile Include="..\MangaJaNaiUpdater\StoreCopy.cs" Link="StoreCopy.cs" />
+  </ItemGroup>
 </Project>

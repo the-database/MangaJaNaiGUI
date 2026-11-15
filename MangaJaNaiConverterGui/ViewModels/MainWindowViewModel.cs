@@ -913,6 +913,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaisePropertyChanged(nameof(LeftStatus));
                 this.RaisePropertyChanged(nameof(AllowComponentChanges));
                 this.RaisePropertyChanged(nameof(AllowStorageChanges));
+                this.RaisePropertyChanged(nameof(AllowSharedStorageChanges));
                 this.RaisePropertyChanged(nameof(PauseEnabled));
                 this.RaisePropertyChanged(nameof(ContinueEnabled));
             }
@@ -1260,6 +1261,7 @@ namespace MangaJaNaiConverterGui.ViewModels
                 this.RaiseAndSetIfChanged(ref _componentsBusy, value);
                 this.RaisePropertyChanged(nameof(AllowComponentChanges));
                 this.RaisePropertyChanged(nameof(AllowStorageChanges));
+                this.RaisePropertyChanged(nameof(AllowSharedStorageChanges));
             }
         }
 
@@ -1397,6 +1399,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             _backendService.RefreshModels();
             await RefreshComponents();
             await RefreshDevices(); // and the variant rule and model list for the models now installed
+            await RefreshStorage(); // what's installed in the store, and its size
         }
 
 
@@ -1422,7 +1425,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             await RefreshStorage();
             if (StorageMissing)
             {
-                ConsoleQueueEnqueue($"The shared runtime's folder {StorageFolderText} isn't available. Is its drive connected? Reconnect it, or reset the location in App Settings > Storage.");
+                ConsoleQueueEnqueue(StoreLocation.MissingMessage(StorageFolderText));
                 return;
             }
             if (resume)
@@ -2245,7 +2248,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        // ---- Storage: where the shared pack store is (App Settings > Storage) -----------------------
+        // ---- Storage: where this copy keeps the TensorRT runtime and the models (App Settings > Storage)
 
         private StoreLocation.Info? _storage;
         public StoreLocation.Info? Storage
@@ -2254,26 +2257,54 @@ namespace MangaJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _storage, value);
-                this.RaisePropertyChanged(nameof(ShowStorage));
-                this.RaisePropertyChanged(nameof(StorageFolderText));
-                this.RaisePropertyChanged(nameof(StorageMoved));
-                this.RaisePropertyChanged(nameof(StorageMissing));
-                this.RaisePropertyChanged(nameof(StorageText));
+                RaiseStorage();
+            }
+        }
+
+        private static readonly string[] StorageProperties =
+        [
+            nameof(ShowStorage), nameof(StorageFolderText), nameof(StorageMoved), nameof(StorageMissing),
+            nameof(StorageUnavailable), nameof(StorageText), nameof(HasStorageChoice), nameof(NoStorageChoice),
+            nameof(StorageIsInside), nameof(StorageIsShared), nameof(StorageIsCustom), nameof(StorageInsideFolder),
+            nameof(StorageSharedFolder), nameof(StorageCustomFolder), nameof(StorageSharedMissing),
+            nameof(StorageCustomMissing), nameof(AllowSharedStorageChanges),
+        ];
+
+        // Also after a switch was cancelled, so the options show the current one again.
+        public void RaiseStorage()
+        {
+            foreach (var p in StorageProperties)
+            {
+                this.RaisePropertyChanged(p);
             }
         }
 
         public bool ShowStorage => _updateManagerService.IsInstalled && Storage is not null;
         public string StorageFolderText => Storage?.Folder ?? "";
-        public bool StorageMoved => Storage is { Moved: true, Available: true };
-        public bool StorageMissing => Storage is { Moved: true, Available: false };
+        public bool StorageMoved => Storage?.MovedHere == true;
 
-        public string StorageText => Storage switch
-        {
-            null => "",
-            { Moved: false } => "The TensorRT runtime and the models are in the default folder. All your JaNai apps share them.",
-            { Available: true } => $"Moved from {Storage.Root}, which now links here. All your JaNai apps share it.",
-            _ => "This folder isn't available. Is its drive connected? Until it is, upscaling can't start.",
-        };
+        // This copy has its packs in its store (the updater says so, or the backend was set up to load
+        // them from there). An updater from before the choice can't say: as before, assume it does.
+        public bool StorageHasPacks =>
+            Storage is { Choice: null } or { Installed: true } || File.Exists(Path.Combine(_backendService.InferenceDirectory, "aji-runtime.json"));
+
+        // The folder is unavailable and this copy's packs are in it: they only look missing, and
+        // upscaling can't start until the folder is back.
+        public bool StorageMissing => Storage?.Missing == true && StorageHasPacks;
+        public bool StorageUnavailable => Storage?.Missing == true;
+        public string StorageText => Storage?.Text ?? "";
+
+        // The three options (an updater from before them only has the shared folder).
+        public bool HasStorageChoice => Storage?.Choice is not null;
+        public bool NoStorageChoice => !HasStorageChoice;
+        public bool StorageIsInside => Storage?.Choice == StoreLocation.StoreChoice.Inside;
+        public bool StorageIsShared => Storage?.IsShared == true;
+        public bool StorageIsCustom => Storage?.Choice == StoreLocation.StoreChoice.Custom;
+        public string StorageInsideFolder => Storage?.Inside ?? "";
+        public string StorageSharedFolder => Storage?.SharedFolder ?? "";
+        public string StorageCustomFolder => StorageIsCustom ? Storage!.Root : "No folder chosen";
+        public bool StorageSharedMissing => StorageIsShared && StorageUnavailable;
+        public bool StorageCustomMissing => StorageIsCustom && StorageUnavailable;
 
         private bool _storageBusy;
         public bool StorageBusy
@@ -2283,10 +2314,15 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _storageBusy, value);
                 this.RaisePropertyChanged(nameof(AllowStorageChanges));
+                this.RaisePropertyChanged(nameof(AllowSharedStorageChanges));
             }
         }
 
+        // No storage change while components install, an upscale runs or another storage change runs.
         public bool AllowStorageChanges => !StorageBusy && AllowComponentChanges;
+
+        // Move... and the others move the shared folder itself, so only while this copy uses it.
+        public bool AllowSharedStorageChanges => AllowStorageChanges && StorageIsShared;
 
         private string _storageStatusText = string.Empty;
         public string StorageStatusText
@@ -2301,15 +2337,34 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 return;
             }
-            Storage = await StoreLocation.GetAsync();
+            Storage = await StoreLocation.ReadAsync();
         }
 
-        // The store's size, for the move confirmation.
+        // The store's size, for the Move... / Move Back confirmations (they move the whole folder).
         public long StorageBytes() => Storage is { } s ? StoreLocation.Size(s.Folder) : 0;
+
+        // What a switch moves: this copy's packs (the updater's "bytes"), else the folder's size.
+        public long SwitchBytes() => Storage?.Bytes is long b ? b : StorageBytes();
 
         public Task MoveStorage(string folder) => ChangeStorage(["move", StoreLocation.MoveTarget(folder)], "Moving the shared runtime");
 
         public Task MoveStorageBack() => ChangeStorage(["move", "--default"], "Moving the shared runtime back");
+
+        // Switch this copy to another store ("inside", "shared" or a folder, StoreLocation.ChoiceArgument);
+        // the updater moves its packs and engines along. Then the components and models are read
+        // again, from there.
+        public async Task<bool> SwitchStorage(string target)
+        {
+            bool installed = Storage?.Installed == true;
+            bool ok = await RunStorageChange(progress => StoreLocation.SwitchAsync(target, progress),
+                installed ? "Moving the components" : "Changing the folder");
+            _modelInfoCache.Clear();
+            _nvidiaDevices = null;
+            _backendService.RefreshModels();
+            await RefreshComponents();
+            await RefreshDevices();
+            return ok;
+        }
 
         // Reset: the store's folder is gone, so the default folder starts empty and this app's
         // components are installed again (the other apps reinstall theirs when they next need them).
@@ -2322,28 +2377,43 @@ namespace MangaJaNaiConverterGui.ViewModels
             }
         }
 
-        private async Task ChangeStorage(string[] args, string doing)
+        private Task<bool> ChangeStorage(string[] args, string doing) =>
+            RunStorageChange(progress => StoreLocation.ChangeAsync(args, progress), doing);
+
+        // Runs a storage change (null on success, else the error) with its progress in the status
+        // line; no component changes meanwhile.
+        private async Task<bool> RunStorageChange(Func<Action<long, long>, Task<string?>> change, string doing)
         {
             if (!AllowStorageChanges)
             {
-                return;
+                return false;
             }
             StorageBusy = true;
             ComponentsBusy = true; // no component installs meanwhile
             StorageStatusText = $"{doing}...";
+            string? error;
+            bool finished = false;
             try
             {
-                var error = await Task.Run(() => StoreLocation.ChangeAsync(args, (done, total) =>
-                    StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}..."));
-                StorageStatusText = error ?? "Done.";
+                error = await Task.Run(() => change((done, total) =>
+                {
+                    // a last progress line can arrive after the result
+                    if (!finished)
+                    {
+                        StorageStatusText = total > 0 ? $"{doing}: {done / 1e9:0.0} of {total / 1e9:0.0} GB" : $"{doing}...";
+                    }
+                }));
             }
             catch (Exception ex)
             {
-                StorageStatusText = ex.Message;
+                error = ex.Message;
             }
+            finished = true;
+            StorageStatusText = error ?? "Done.";
             ComponentsBusy = false;
             StorageBusy = false;
             await RefreshStorage();
+            return error is null;
         }
 
         public void RemoveLegacyFiles()
