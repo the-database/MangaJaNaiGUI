@@ -878,6 +878,10 @@
                                 ToolTip.Tip="Which GPU upscales." />
                 <ComboBox ItemsSource="{Binding DeviceList}" SelectedIndex="{Binding SelectedDeviceIndex, Mode=TwoWay}" IsEnabled="{Binding !Upscaling}" />
               </StackPanel>
+              <ContentControl Classes="hint" HorizontalAlignment="Left" IsVisible="{Binding !DirectMlBackendSelected}"
+                              ToolTip.Tip="On RTX 30 and newer GPUs, models run on built-in GPU kernels instead of TensorRT engines: faster, and nothing to build before the first upscale. Turn this off to use TensorRT engines for every model, for example if a model's output looks wrong or fails. Applies to TensorRT and TensorRT-RTX. On by default.">
+                <CheckBox IsChecked="{Binding UseNativeKernels}" Content="Use native GPU kernels" IsEnabled="{Binding !Upscaling}" />
+              </ContentControl>
               <TextBlock Foreground="Gray" TextWrapping="Wrap" Text="{Binding DeviceStatusText}" />
               <!-- Setup check: shown only when another choice is clearly faster here -->
               <StackPanel Classes="row" Spacing="8" IsVisible="{Binding ShowBackendSetupHint}">
