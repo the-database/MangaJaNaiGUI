@@ -3,6 +3,7 @@ using MangaJaNaiConverterGui.Services;
 using MangaJaNaiConverterGui.ViewModels;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 using System.IO;
 using Xunit;
 
@@ -208,6 +209,42 @@ namespace MangaJaNaiConverterGui.Tests
                 JsonConvert.DeserializeObject<object>(saved.ToString(), NewtonsoftJsonSuspensionDriver.Settings));
 
             Assert.Equal(choice, state.UpscaleBackend);
+        }
+
+        // Native kernels off runs the backend with AJI_NATIVE=off; on leaves the environment alone.
+        [Fact]
+        public void NativeKernelsOffSetsAjiNative()
+        {
+            var off = new Dictionary<string, string?>();
+            UpscaleBackends.ApplyNativeKernels(off, useNative: false);
+            Assert.Equal("off", off["AJI_NATIVE"]);
+
+            var on = new Dictionary<string, string?> { ["AJI_NATIVE"] = "0" };
+            UpscaleBackends.ApplyNativeKernels(on, useNative: true);
+            Assert.Equal("0", on["AJI_NATIVE"]);
+            var none = new Dictionary<string, string?>();
+            UpscaleBackends.ApplyNativeKernels(none, useNative: true);
+            Assert.False(none.ContainsKey("AJI_NATIVE"));
+        }
+
+        // A state saved before the setting existed has native kernels on; a saved choice loads.
+        [Theory]
+        [InlineData(null, true)]
+        [InlineData(false, false)]
+        [InlineData(true, true)]
+        public void TheNativeKernelsChoiceLoads(bool? saved, bool expected)
+        {
+            var state = JObject.Parse(File.ReadAllText(NewtonsoftJsonSuspensionDriver.DefaultStatePath));
+            state.Remove("UseNativeKernels");
+            if (saved is bool s)
+            {
+                state["UseNativeKernels"] = s;
+            }
+
+            var vm = Assert.IsType<MainWindowViewModel>(
+                JsonConvert.DeserializeObject<object>(state.ToString(), NewtonsoftJsonSuspensionDriver.Settings));
+
+            Assert.Equal(expected, vm.UseNativeKernels);
         }
     }
 }

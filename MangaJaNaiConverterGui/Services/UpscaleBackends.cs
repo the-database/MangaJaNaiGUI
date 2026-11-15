@@ -10,6 +10,16 @@ namespace MangaJaNaiConverterGui.Services
     public static class UpscaleBackends
     {
         public const string Auto = "Auto";
+
+        // AJI_NATIVE for the backend process: native kernels are libaji's default, so only "off" is
+        // set, and with them on an AJI_NATIVE the user set themselves is left alone.
+        public static void ApplyNativeKernels(IDictionary<string, string?> environment, bool useNative)
+        {
+            if (!useNative)
+            {
+                environment["AJI_NATIVE"] = "off";
+            }
+        }
         public const string TensorRt = "TensorRT";
         // The trt-rtx component, which the updater installs on RTX 20 / GTX 16 series and newer: Auto's first
         // choice wherever it's installed, and an explicit choice on any NVIDIA GPU.
