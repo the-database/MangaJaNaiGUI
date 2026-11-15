@@ -1290,12 +1290,19 @@ namespace MangaJaNaiConverterGui.ViewModels
         {
             try
             {
-                var json = await _updateManagerService.GetComponentsJsonAsync();
-                if (string.IsNullOrWhiteSpace(json))
+                var output = await _updateManagerService.GetComponentsJsonAsync();
+                if (string.IsNullOrWhiteSpace(output))
                 {
                     return;
                 }
+                var (json, messages) = ComponentsOutput.Split(output);
+                if (json is null)
+                {
+                    ComponentStatusText = $"Could not read components: {(messages.Count > 0 ? messages[^1] : "no output")}";
+                    return;
+                }
                 var root = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var notes = ComponentsOutput.Notes((root["notes"] as Newtonsoft.Json.Linq.JArray)?.Select(x => (string?)x), messages);
                 var gpu = root["gpu"];
                 bool nvidia = (bool?)gpu?["nvidia"] ?? false;
                 var gpuName = (string?)gpu?["name"] ?? "";
@@ -1313,6 +1320,10 @@ namespace MangaJaNaiConverterGui.ViewModels
                 _allComponents = packs;
                 _gpuNvidia = nvidia;
                 RebuildComponents();
+                if (notes.Count > 0)
+                {
+                    ComponentStatusText = string.Join(" ", notes);
+                }
             }
             catch (Exception ex)
             {
