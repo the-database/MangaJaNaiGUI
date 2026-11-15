@@ -91,16 +91,16 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.28.0 adds aji_img_memory_get; v0.29.0 runs the shipped models on native kernels on RTX 30 and newer (no engine build; AJI_NATIVE=off disables) and adds aji_img_native_probe.
 // Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
-const string AjiVersion        = "v0.29.0";
-const string AjiSha256Win      = "3e13cb8a9493a3d25becec0324ff421f3b329d60a9bf745e43aa5997685c83da";
+const string AjiVersion        = "v0.31.0";
+const string AjiSha256Win      = "eee4db1eafb08ae958e2d9b9ce6460ade2d914d082cf0ff017ebab8e0faa8b9d";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). aji_trtrtx.dll stays in the core (it must match aji.dll); the
 // runtime becomes the trt-rtx pack.
-const string AjiTrtRtxSha256Win = "8137b0df7385f6f67626fcea8b783a67f6cd607268680c196fac825cde4b5873";
+const string AjiTrtRtxSha256Win = "ae120c9f27929fa1a866df420b50606fac4e9b41d69e4d4b08ca737f0c414085";
 // aji_trtrtx.dll alone (store builds): the same release's aji-trtrtx-backend-windows-x64.zip.
-const string AjiTrtRtxBackendSha256Win = "b4c13fd3bf257fcd37ef539e37e42b3d8690f9064434d2f3c2bb813570951288";
+const string AjiTrtRtxBackendSha256Win = "54f16ea293e914c9a6ecde89e37432f2128057005bcf60536b83d383022075e1";
 // Linux: libaji.so + libaji_trt.so (TensorRT only).
-const string AjiSha256Linux    = "543b800cf4f78e9cc8279efac161db94e99436efd676c5d482475735703ed931";
+const string AjiSha256Linux    = "32e081303019a6e9dd8a1a33416c21b515c7fbf4689da3b7793a61d0f97bb603";
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs, TensorRT-RTX's runtime and the default models, installed once per user into
 // the shared pack store by aji-runtime (the updater's store mode). The manifest carries the platform's
