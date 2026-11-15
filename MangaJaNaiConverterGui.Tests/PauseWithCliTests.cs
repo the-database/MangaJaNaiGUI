@@ -33,6 +33,12 @@ namespace MangaJaNaiConverterGui.Tests
         public string? ResolveModelPath(string? model) => null;
     }
 
+    // The tests that run a real CLI on the GPU run one at a time: Pause's timing doesn't hold with
+    // another upscale beside it.
+    [CollectionDefinition("Real CLI", DisableParallelization = true)]
+    public class RealCliCollection;
+
+    [Collection("Real CLI")]
     public class PauseWithCliTests
     {
         // Pause and Resume through the view model against a real CLI (MANGAJANAI_CLI_EXE: a build with
@@ -125,7 +131,7 @@ namespace MangaJaNaiConverterGui.Tests
         }
 
         // An 8-bit gray PNG (quick to write and decode).
-        private static byte[] Png(int w, int h, byte[] gray)
+        internal static byte[] Png(int w, int h, byte[] gray)
         {
             using var raw = new MemoryStream();
             for (var y = 0; y < h; y++)

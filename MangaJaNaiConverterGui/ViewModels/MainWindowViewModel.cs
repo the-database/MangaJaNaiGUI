@@ -1753,6 +1753,8 @@ namespace MangaJaNaiConverterGui.ViewModels
 
         public async Task<int> RunCommand(IEnumerable<string> arguments)
         {
+            _nativeStatus.Reset(offInSettings: !UseNativeKernels);
+            RaiseNativeStatusChanged();
             using (var process = new Process())
             {
                 _runningProcess = process;
@@ -1819,7 +1821,13 @@ namespace MangaJaNaiConverterGui.ViewModels
                                 // second, and after a TensorRT-RTX fallback the build is TensorRT's.
                                 // BACKEND_FALLBACK: TensorRT-RTX failed (at start, or for one model)
                                 // and the CLI runs TensorRT instead; warned about until the next run.
-                                if (e.Data.StartsWith("BACKEND_FALLBACK "))
+                                // NATIVE / NATIVE_UNUSED / NATIVE_OFF: whether each model runs on native
+                                // GPU kernels (NativeKernelStatus), shown until the next run.
+                                if (_nativeStatus.Take(e.Data))
+                                {
+                                    RaiseNativeStatusChanged();
+                                }
+                                else if (e.Data.StartsWith("BACKEND_FALLBACK "))
                                 {
                                     BackendFallbackText = e.Data["BACKEND_FALLBACK ".Length..];
                                     EngineStatusText = string.Empty; // a failed TensorRT-RTX build ends here
@@ -1877,6 +1885,23 @@ namespace MangaJaNaiConverterGui.ViewModels
         }
 
         public bool ShowBackendFallback => !string.IsNullOrEmpty(BackendFallbackText);
+
+        // Whether this run's models ran on native GPU kernels (the CLI's NATIVE lines): "Native
+        // kernels", "Native kernels for 1 of 2 models — <model>: <why>", or "Native kernels off
+        // (App Settings)" in the status bar, every model's status as its tooltip.
+        private readonly NativeKernelStatus _nativeStatus = new();
+        public string NativeStatusText => _nativeStatus.Text;
+        public string NativeStatusTooltip => _nativeStatus.Tooltip;
+        public bool ShowNativeStatus => NativeStatusText.Length > 0;
+        public bool NativeStatusAllNative => _nativeStatus.AllNative;
+
+        private void RaiseNativeStatusChanged()
+        {
+            this.RaisePropertyChanged(nameof(NativeStatusText));
+            this.RaisePropertyChanged(nameof(NativeStatusTooltip));
+            this.RaisePropertyChanged(nameof(ShowNativeStatus));
+            this.RaisePropertyChanged(nameof(NativeStatusAllNative));
+        }
 
         // The CLI's last precision hint this run ("<model>: <text>"): a note in the status bar, the
         // full line as its tooltip.
