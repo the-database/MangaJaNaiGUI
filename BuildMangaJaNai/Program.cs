@@ -131,6 +131,7 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
 // v0.6.2 adds --control stdin, which Pause uses to unload the models (freeing the GPU memory).
+// v0.9.1 bundles libaji v0.31.0 (SPAN/Compact on the native kernels).
 // v0.9.0 sizes tiles to the GPU's free memory by default (tile Auto) and measures native models with libaji's probe.
 // v0.6.1 adds --skip-written-since, which Continue passes to resume an interrupted run.
 // v0.5.0 writes JPEG XL (JxlSelected in the settings), which the GUI's JPEG XL format needs.
