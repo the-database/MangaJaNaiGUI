@@ -88,18 +88,19 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.19.0 makes DirectML ~35-40% faster and adds TensorRT-RTX; v0.19.1 fixes its engine-build teardown;
 // v0.21.0 tiles on the GPU (TensorRT/TensorRT-RTX), speeds up DirectML's tiling, and fixes tile seams in
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
-// Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
+// v0.28.0 adds aji_img_memory_get; v0.29.0 runs the shipped models on native kernels on RTX 30 and newer (no engine build; AJI_NATIVE=off disables) and adds aji_img_native_probe.
+/ Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
-const string AjiVersion        = "v0.27.0";
-const string AjiSha256Win      = "1ae2a0d16be2a660d8197fe4f64e8be7cf7637d7842b19994636e42309ab17b2";
+const string AjiVersion        = "v0.29.0";
+const string AjiSha256Win      = "3e13cb8a9493a3d25becec0324ff421f3b329d60a9bf745e43aa5997685c83da";
 // The same release's TensorRT-RTX backend: aji_trtrtx.dll + the TensorRT for RTX runtime and its
 // licence notices (~232 MB unpacked). aji_trtrtx.dll stays in the core (it must match aji.dll); the
 // runtime becomes the trt-rtx pack.
-const string AjiTrtRtxSha256Win = "acdf52d9c63f34b1353f08b0511985ddb755bd61793e9a1ae65cbc3c5ba18625";
+const string AjiTrtRtxSha256Win = "8137b0df7385f6f67626fcea8b783a67f6cd607268680c196fac825cde4b5873";
 // aji_trtrtx.dll alone (store builds): the same release's aji-trtrtx-backend-windows-x64.zip.
-const string AjiTrtRtxBackendSha256Win = "13417fd2a061bc4539ea2509c1ced5023b947d561431a9b527c718c89a00ca35";
+const string AjiTrtRtxBackendSha256Win = "b4c13fd3bf257fcd37ef539e37e42b3d8690f9064434d2f3c2bb813570951288";
 // Linux: libaji.so + libaji_trt.so (TensorRT only).
-const string AjiSha256Linux    = "044a9cc652fa7660218597c1faa01b7c0abdd97f10a644b0250a0a42321ac0f5";
+const string AjiSha256Linux    = "543b800cf4f78e9cc8279efac161db94e99436efd676c5d482475735703ed931";
 // The shared runtime packs every libaji app pins (animejanai-inference runtime-<n>): TensorRT, the
 // per-GPU builder packs, TensorRT-RTX's runtime and the default models, installed once per user into
 // the shared pack store by aji-runtime (the updater's store mode). The manifest carries the platform's
