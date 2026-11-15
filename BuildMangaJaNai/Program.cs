@@ -89,6 +89,7 @@ var trtDebSha256 = new Dictionary<string, string>
 // v0.21.0 tiles on the GPU (TensorRT/TensorRT-RTX), speeds up DirectML's tiling, and fixes tile seams in
 // MangaJaNai's generated screentone (128 px overlaps, blended at their centre).
 // v0.28.0 adds aji_img_memory_get; v0.29.0 runs the shipped models on native kernels on RTX 30 and newer (no engine build; AJI_NATIVE=off disables) and adds aji_img_native_probe.
+// v0.31.0 runs SPAN and Compact models on the native kernels too.
 // Releases of libaji and MangaJaNaiCLI open the PRs that move these pins and their SHA-256s
 // (.github/workflows/bump-pins.yml, scripts/bump_pins.py libaji|mangajanai-cli <tag>).
 const string AjiVersion        = "v0.31.0";
