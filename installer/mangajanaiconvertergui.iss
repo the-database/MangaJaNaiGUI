@@ -30,6 +30,9 @@
 #define UpdaterExe "MangaJaNaiUpdater.exe"
 
 [Setup]
+; MangaJaNaiUpdater (StoreCopy.SetupInstallLocations) reads this AppId's uninstall entry
+; (HKCU ...\Uninstall\<AppId>_is1) to tell this install from a copy of its folder; keep
+; StoreCopy.InstallerAppIds in sync (MangaJaNaiConverterGui.Tests checks it).
 AppId={{530AF8E6-8505-4160-8FBC-C07D0B9A0910}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -70,12 +73,17 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Check: HadLegacyD
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
-; First drop this install's ref in the shared pack store (%LOCALAPPDATA%\the-database\aji, shared
-; with other apps): the TensorRT runtime and models no other installed app uses are removed with it. An
-; install from before the store has no aji-runtime.exe; without it the folder's deletion below leaves
-; a dead ref that the store frees later anyway.
+; First drop this install's ref in its pack store: the per-user one (%LOCALAPPDATA%\the-database\aji,
+; shared with other apps), or the folder aji-runtime.conf beside aji-runtime.exe names (inside this
+; install or one the user chose in App Settings > Storage; aji-runtime reads it). The TensorRT runtime
+; and models no other installed app uses are removed with it. An install from before the store has no
+; aji-runtime.exe; without it, or with the store's drive unplugged, the folder's deletion below leaves
+; a dead ref that the store frees later anyway. A store inside the install goes with the folder.
+; --app-path: the plain ref is dropped only while it names this install's app (the path the updater
+; writes it with); a ref another copy of the app wrote is left alone (aji-runtime 0.3.0+, which this
+; package ships).
 [UninstallRun]
-Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id mangajanai-gui"; Flags: runhidden skipifdoesntexist waituntilterminated; RunOnceId: "mangajanai-gui-unref"
+Filename: "{app}\aji-runtime.exe"; Parameters: "unref --app-id mangajanai-gui --app-path ""{app}\{#AppExe}"""; Flags: runhidden skipifdoesntexist waituntilterminated; RunOnceId: "mangajanai-gui-unref"
 
 ; Remove the whole app folder, including files created at runtime (component packs, components.json,
 ; update staging, the updater's .old copy). In %APPDATA% remove the TensorRT engine cache and logs,
@@ -321,6 +329,14 @@ begin
   end
   else if CurStep = ssPostInstall then
   begin
+    // Mark this copy as installed by setup before the updater first runs in it: the updater keeps the
+    // plain pack-store ref id (mangajanai-gui, which [UninstallRun] drops) for a copy with this marker
+    // or an unins???.exe whose folder this setup's uninstall entry (HKCU ...\Uninstall\<AppId>_is1,
+    // InstallLocation) names or that has no entry yet, and a per-copy id for any other copy (a
+    // portable zip, or a copy of this folder elsewhere). The marker covers any point where the
+    // uninstaller isn't written yet. [UninstallDelete] removes it with the folder.
+    SaveStringToFile(ExpandConstant('{app}\installed-by-setup.txt'),
+      'Installed by the {#AppName} setup. MangaJaNaiUpdater reads this file; keep it.' + #13#10, False);
     // Re-detect from the now-installed updater: it knows the installed version (so the matching
     // packs), and the network may be available now even if it wasn't at wizard start.
     RunRecommend(ExpandConstant('{app}\{#UpdaterExe}'));
