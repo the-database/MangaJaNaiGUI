@@ -75,6 +75,32 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.True(Service().IsTensorRtRuntimeInstalled);
         }
 
+        // A store inside a portable copy (relative mode): aji-runtime.json names the folders relative to
+        // its own folder, so the copy can be moved.
+        [Fact]
+        public void Relative_folders_are_relative_to_aji_runtime_json()
+        {
+            string inside = Path.Combine(_root, "app", "runtime", "packs");
+            string trt = Path.Combine(inside, "trt-runtime", "1");
+            string models = Path.Combine(inside, "models-mangajanai", "1");
+            Directory.CreateDirectory(trt);
+            Directory.CreateDirectory(models);
+            File.WriteAllText(Path.Combine(trt, BackendService.Exe("trtexec")), "x");
+            File.WriteAllText(Path.Combine(trt, OperatingSystem.IsWindows() ? "cudart64_13.dll" : "libcudart.so.13"), "x");
+            File.WriteAllText(Path.Combine(models, "a.onnx"), "x");
+            var sep = Path.DirectorySeparatorChar;
+            WriteRuntimeJson(new
+            {
+                format = 1,
+                trt = $"..{sep}runtime{sep}packs{sep}trt-runtime{sep}1",
+                models = new[] { $"..{sep}runtime{sep}packs{sep}models-mangajanai{sep}1" },
+            });
+            var s = Service();
+            Assert.True(s.IsTensorRtRuntimeInstalled);
+            Assert.Equal([models], s.StoreModelsDirectories);
+            Assert.Contains("a.onnx", s.AllModels);
+        }
+
         [Fact]
         public void A_store_pack_folder_that_is_gone_does_not_count()
         {

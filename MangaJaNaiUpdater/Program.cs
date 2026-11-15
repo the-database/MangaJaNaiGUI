@@ -12,6 +12,8 @@
 //   MangaJaNaiUpdater.exe --remove X     delete component pack X's files
 //   MangaJaNaiUpdater.exe --auto         install everything the detected hardware needs (or refresh stale packs)
 //   MangaJaNaiUpdater.exe --recommend    KEY=value hardware summary for the Inno installer
+//   MangaJaNaiUpdater.exe --storage --json            where this copy keeps its packs (App Settings > Storage)
+//   MangaJaNaiUpdater.exe --storage inside|shared|DIR keep them there from now on; the packs move along
 //
 // An update is the latest GitHub release's full package (MangaJaNaiGUI-full-package-<ver>.zip on
 // Windows, MangaJaNaiGUI-v<ver>-linux-x64.tar.gz on Linux, both rooted at MangaJaNaiConverterGui-v<ver>/).
@@ -29,19 +31,29 @@
 //
 // Shared pack store: when manifest.json pins a shared runtime release ("runtime": its index URL and
 // SHA-256) and aji-runtime(.exe) ships beside this updater, the same packs (TensorRT, the builder
-// packs, TensorRT-RTX's runtime, the models) live in the per-user pack store instead
-// (%LOCALAPPDATA%\the-database\aji, shared with the other apps; the-database/aji-runtime), as app
-// "mangajanai-gui". Each install, removal and --auto is one `aji-runtime ensure` with the full set
-// this install uses, which also writes inference/aji-runtime.json (libaji and the app read it). Files
-// an older version installed into the install folder are taken over by the store (matched by
-// SHA-256) and then deleted here. The pack names, --components --json and the exit codes stay the
-// same, so the app and the installer don't change. The uninstaller runs `aji-runtime unref`.
+// packs, TensorRT-RTX's runtime, the models) live in a pack store instead (the-database/aji-runtime),
+// as app "mangajanai-gui". Which store is aji-runtime's choice: the settings file aji-runtime.conf
+// beside it, else the per-user store shared with the other apps (%LOCALAPPDATA%\the-database\aji or
+// ~/.local/share/the-database/aji). Each install, removal and --auto is one `aji-runtime ensure` with
+// the full set this install uses, which also writes inference/aji-runtime.json (libaji and the app
+// read it). Files an older version installed into the install folder are taken over by the store
+// (matched by SHA-256) and then deleted here. The pack names, --components --json and the exit codes
+// stay the same, so the app and the installer don't change. The uninstaller runs `aji-runtime unref`.
+// Each copy has its own ref (StoreCopy): the copy the setup installer made keeps the plain id; any
+// other Windows copy (a portable zip, a copy of the installed folder) passes --per-copy --app-path
+// <its exe>. The packs count as installed only when the ref show reads names this copy's exe and
+// inference/aji-runtime.json is there; another copy's ref is never changed or dropped. A zip copy that
+// has no settings file and no packs yet gets `store = runtime` (inside its folder, relative, so the
+// folder can be moved or copied to another PC); --storage switches it (aji-runtime use) for App
+// Settings > Storage. The package never ships aji-runtime.conf, and updates preserve it.
 //
 // Dev overrides: MANGAJANAI_UPDATE_URL=<url> reads the latest release from another GitHub-style
 // releases/latest endpoint (a fork's, or a local test server's); MANGAJANAI_PACKS_DIR=<dir> reads
 // packs.json + component-*.7z from a local directory; MANGAJANAI_RUNTIME_MIRROR=<dir> installs the
 // store packs from a folder holding the runtime release's packs-<platform>.json and archives;
-// AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points the store at a test folder;
+// AJI_RUNTIME_STORE=<dir> (read by aji-runtime) points the store at a test folder (and overrides
+// aji-runtime.conf; to test the per-copy behaviour set LOCALAPPDATA to a scratch folder instead);
+// MANGAJANAI_SETUP_LOCATION=<dir> stands in for the setup installer's uninstall entry ("" for none);
 // MANGAJANAI_TEST_GPUS="<name>:<major>.<minor>;..." stands in for the NVIDIA GPUs NVML finds ("none":
 // no NVIDIA GPU), to check the recommendations for hardware this PC doesn't have.
 
@@ -51,6 +63,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using MangaJaNaiConverterGui.Services;
+using MangaJaNaiUpdater;
 using static Downloader;
 
 // The app was MangaJaNaiConverterGui until 2.0. Its exe, the package's root folder and %APPDATA% folder
@@ -87,8 +100,14 @@ string? runtimeIndexUrl = ReadManifestNested(localManifest, "runtime", "index_ur
 string? runtimeIndexSha = ReadManifestNested(localManifest, "runtime", "index_sha256");
 string? runtimeMirror = Environment.GetEnvironmentVariable("MANGAJANAI_RUNTIME_MIRROR") is { Length: > 0 } mirror ? mirror : null;
 bool storeMode = (runtimeIndexUrl is not null && runtimeIndexSha is not null || runtimeMirror is not null) && File.Exists(ajiRuntime);
-const string StoreAppId = "mangajanai-gui";
+const string StoreAppId = StoreCopy.AppId;
 string inferenceDir = Path.Combine(installDir, "inference");
+// Each copy has its own ref (StoreCopy): the setup installer's copy the plain id, any other Windows copy
+// a per-copy id derived from its path. On Linux every install keeps the plain id.
+bool zipCopy = OperatingSystem.IsWindows() && !StoreCopy.IsSetupInstall(installDir, StoreCopy.SetupInstallLocations());
+string appPath = Path.Combine(installDir, appExe);
+string[] StoreIdArgs() => zipCopy ? ["--app-id", StoreAppId, "--per-copy", "--app-path", appPath] : ["--app-id", StoreAppId];
+string insideStoreDir = Path.Combine(installDir, StoreCopy.InsideStore);
 
 string mode = args.Length > 0 ? args[0].ToLowerInvariant() : "--check";
 
@@ -120,6 +139,7 @@ try
             Console.SetOut(notes);
             try
             {
+                DefaultZipStore();
                 await ComponentsAsync(null, json: true, jsonOut: stdout, notes: notes);
             }
             finally
@@ -129,18 +149,26 @@ try
             return 0;
         }
         case "--components":
+            DefaultZipStore();
             await ComponentsAsync(null);
             return 0;
         case "--install":
+            DefaultZipStore();
             return await InstallComponentAsync(args.Length > 1 ? args[1] : "");
         case "--remove":
+            DefaultZipStore();
             return RemoveComponent(args.Length > 1 ? args[1] : "");
         case "--auto":
+            DefaultZipStore();
             return await AutoComponentsAsync();
+        case "--storage" when args.Length > 1 && args[1].Equals("--json", StringComparison.OrdinalIgnoreCase):
+            return StorageJson();
+        case "--storage" when args.Length > 1:
+            return StorageSwitch(args[1]);
         case "--recommend":
             return await RecommendAsync();
         default:
-            Console.WriteLine("Usage: MangaJaNaiUpdater [--check|--download|--apply [--no-relaunch]|--components [--json]|--install <pack>|--remove <pack>|--auto|--recommend]");
+            Console.WriteLine("Usage: MangaJaNaiUpdater [--check|--download|--apply [--no-relaunch]|--components [--json]|--install <pack>|--remove <pack>|--auto|--recommend|--storage --json|--storage inside|shared|<folder>]");
             return 2;
     }
 }
@@ -1149,18 +1177,19 @@ async Task<int> AutoComponentsAsync()
     var rec = RecommendedPacks(index, hasNvidia, sm);
     if (storeMode)
     {
-        var have = ReadStoreInstalled();
+        var own = ReadOwnRef();
+        var have = StoreInstalled(own);
         var want = StoreWanted(index);
         want.UnionWith(rec);
         // The ref records the packs of the runtime release the last ensure installed from, and that
         // ensure's app version: after an update (which may pin a newer runtime release), ensure again.
-        // It keeps the packs only while its app path exists: one naming another path (the install was
-        // moved or renamed) is dead, and the next cleanup by any app frees the packs, so ensure again
-        // to write it for this install.
-        var (refVersion, refAppPath) = ReadStoreRef();
-        bool complete = want.All(have.ContainsKey) && have.Keys.All(want.Contains) &&
-                        File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")) &&
-                        refVersion == ReadLocalVersion() && IsThisInstall(refAppPath);
+        // A ref naming another path isn't this copy's (ReadOwnRef): another copy's, or this install's
+        // from before it was moved or renamed (dead: the next cleanup by any app frees its packs), so
+        // ensure again to write one for this copy. A zip copy still on the plain id (from before refs
+        // were per copy) ensures again too, which moves it to its own id.
+        bool complete = own is not null && !(zipCopy && own.RefId == StoreAppId) &&
+                        want.All(have.ContainsKey) && have.Keys.All(want.Contains) &&
+                        own.AppVersion == ReadLocalVersion();
         int rc = complete && !PrivatePackFilesLeft(index) ? 0 : StoreEnsure(index, want);
         DeleteRetiredFiles(index);
         if (rc == 0 && complete)
@@ -1292,95 +1321,37 @@ async Task<string> StoreIndexJsonAsync()
     return System.Text.Encoding.UTF8.GetString(data);
 }
 
-// The packs the store holds for this install (aji-runtime show), under the GUI's names.
-Dictionary<string, string> ReadStoreInstalled()
+// This copy's ref in the store (aji-runtime show), or null when the ref show reads isn't this copy's:
+// none, or the plain id's ref naming another copy (an installed copy next to a zip copy) or another
+// path (this install before it was moved). Pack names are the store's.
+StoreRef? ReadOwnRef()
 {
-    var installed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
-    if (rc != 0)
+    var (rc, stdout) = RunAjiRuntime(["show", .. StoreIdArgs()], capture: true);
+    return rc == 0 ? StoreCopy.ParseOwnRef(stdout, appPath) : null;
+}
+
+// This copy's packs in the store, under the GUI's names (name -> (version, folder)): they count as
+// installed here only when the ref is this copy's and inference/aji-runtime.json, which libaji and the
+// app find them by, is there. Otherwise nothing is installed here, and the next install is a normal
+// ensure for this copy (nothing is downloaded for packs the store already has).
+Dictionary<string, (string Version, string Dir)> StorePacks(StoreRef? own)
+{
+    var packs = new Dictionary<string, (string Version, string Dir)>(StringComparer.OrdinalIgnoreCase);
+    if (own is not null && File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")))
     {
-        return installed;
-    }
-    try
-    {
-        using var doc = JsonDocument.Parse(stdout);
-        foreach (var p in doc.RootElement.GetProperty("packs").EnumerateArray())
+        foreach (var (name, pack) in own.Packs)
         {
-            if (p.GetProperty("installed").GetBoolean())
-            {
-                installed[GuiName(p.GetProperty("name").GetString() ?? "")] = p.GetProperty("version").GetString() ?? "";
-            }
+            packs[GuiName(name)] = pack;
         }
     }
-    catch { /* unreadable: nothing installed */ }
-    return installed;
+    return packs;
 }
 
-// The app version and app path this install's ref was last written for ("" and null without a ref;
-// the path is null too from an older aji-runtime, whose show doesn't print it).
-(string Version, string? AppPath) ReadStoreRef()
-{
-    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
-    if (rc != 0)
-    {
-        return ("", null);
-    }
-    try
-    {
-        using var doc = JsonDocument.Parse(stdout);
-        var r = doc.RootElement;
-        string version = r.TryGetProperty("app_version", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-        string? appPath = r.TryGetProperty("app_path", out var a) && a.ValueKind == JsonValueKind.String ? a.GetString() : null;
-        return (version, appPath);
-    }
-    catch
-    {
-        return ("", null);
-    }
-}
+Dictionary<string, string> StoreInstalled(StoreRef? own) =>
+    StorePacks(own).ToDictionary(kv => kv.Key, kv => kv.Value.Version, StringComparer.OrdinalIgnoreCase);
 
-// Whether a ref's app path is this install's app (what StoreEnsure passes as --app-path). Unknown
-// (null) counts as not: ensuring again only rewrites the ref.
-bool IsThisInstall(string? refAppPath)
-{
-    if (string.IsNullOrEmpty(refAppPath))
-    {
-        return false;
-    }
-    try
-    {
-        var cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        return string.Equals(Path.GetFullPath(refAppPath), Path.GetFullPath(Path.Combine(installDir, appExe)), cmp);
-    }
-    catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
-    {
-        return false;
-    }
-}
-
-// The store folder of each pack this install has, under the GUI's names.
-Dictionary<string, string> ReadStoreDirs()
-{
-    var dirs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    var (rc, stdout) = RunAjiRuntime(["show", "--app-id", StoreAppId], capture: true);
-    if (rc != 0)
-    {
-        return dirs;
-    }
-    try
-    {
-        using var doc = JsonDocument.Parse(stdout);
-        foreach (var p in doc.RootElement.GetProperty("packs").EnumerateArray())
-        {
-            if (p.GetProperty("installed").GetBoolean())
-            {
-                dirs[GuiName(p.GetProperty("name").GetString() ?? "")] = p.GetProperty("dir").GetString() ?? "";
-            }
-        }
-    }
-    catch { /* unreadable */ }
-    return dirs;
-}
+// The packs the store holds for this copy, under the GUI's names.
+Dictionary<string, string> ReadStoreInstalled() => StoreInstalled(ReadOwnRef());
 
 // What this install uses now: the store's packs, plus the ones an older version installed into the
 // install folder (components.json), which the next ensure moves to the store.
@@ -1406,13 +1377,13 @@ int StoreEnsure(PackIndex index, HashSet<string> want)
     string sha = runtimeMirror is not null ? Sha256Hex(File.ReadAllBytes(indexArg)) : runtimeIndexSha!;
     // Install order as the index lists them.
     var ordered = index.Packs.Where(p => want.Contains(p.Name)).Select(p => StoreName(p.Name)).ToList();
-    var args = new List<string>
-    {
-        "ensure", "--app-id", StoreAppId, "--app-path", Path.Combine(installDir, appExe),
+    List<string> args =
+    [
+        "ensure", "--app-id", StoreAppId, .. (zipCopy ? new[] { "--per-copy" } : []), "--app-path", appPath,
         "--app-version", ReadLocalVersion(), "--index", indexArg, "--index-sha256", sha,
         "--want", string.Join(",", ordered), "--gpus", "none", "--aji-dir", inferenceDir,
         "--adopt-from", inferenceDir, "--adopt-from", installDir,
-    };
+    ];
     if (runtimeMirror is not null)
     {
         args.AddRange(["--mirror", runtimeMirror]);
@@ -1426,10 +1397,20 @@ int StoreEnsure(PackIndex index, HashSet<string> want)
     return 0;
 }
 
+// Drops this copy's ref. A ref show reads that names another copy is left alone (with the plain id an
+// unref would drop it: an installed copy beside a zip copy that still has the plain ref).
 int StoreUnref()
 {
-    var (rc, _) = RunAjiRuntime(["unref", "--app-id", StoreAppId], capture: false);
-    TryDelete(() => File.Delete(Path.Combine(inferenceDir, "aji-runtime.json")));
+    int rc = 0;
+    if (ReadOwnRef() is not null)
+    {
+        // the plain id with --app-path too: aji-runtime drops the plain ref only while it names this copy
+        (rc, _) = RunAjiRuntime(["unref", .. StoreIdArgs(), .. (zipCopy ? Array.Empty<string>() : ["--app-path", appPath])], capture: false);
+    }
+    if (rc == 0)
+    {
+        TryDelete(() => File.Delete(Path.Combine(inferenceDir, "aji-runtime.json")));
+    }
     return rc;
 }
 
@@ -1454,8 +1435,9 @@ bool PrivatePackFilesLeft(PackIndex index) =>
 void RemovePrivatePackFiles(PackIndex index)
 {
     var recorded = ReadPackFiles();
-    var have = ReadStoreInstalled();
-    var dirs = ReadStoreDirs();
+    var packs = StorePacks(ReadOwnRef());
+    var have = packs.ToDictionary(kv => kv.Key, kv => kv.Value.Version, StringComparer.OrdinalIgnoreCase);
+    var dirs = packs.ToDictionary(kv => kv.Key, kv => kv.Value.Dir, StringComparer.OrdinalIgnoreCase);
     // Recorded files of packs the store now has (a pack this install no longer uses has none left).
     int gone = DeleteInstallFiles(recorded.Where(kv => have.ContainsKey(kv.Key) || !index.Packs.Any(p => p.Name == kv.Key))
         .SelectMany(kv => kv.Value).Where(f => !IsLibaji(f)));
@@ -1501,7 +1483,10 @@ static bool SameFile(string a, string b)
 
 // Runs aji-runtime. Its human output (stderr) is passed on line by line, as the app shows this
 // updater's output; with `capture`, stdout is returned instead of shown (and only errors are shown).
-(int, string) RunAjiRuntime(IEnumerable<string> arguments, bool capture)
+// With `onStdoutLine`, each stdout line goes there as it arrives (and isn't shown); `onStderrLine` sees
+// every stderr line. aji-runtime writes UTF-8 (paths can hold any character).
+(int, string) RunAjiRuntime(IEnumerable<string> arguments, bool capture, Action<string>? onStdoutLine = null,
+    Action<string>? onStderrLine = null)
 {
     var psi = new ProcessStartInfo
     {
@@ -1509,6 +1494,8 @@ static bool SameFile(string a, string b)
         UseShellExecute = false,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
+        StandardOutputEncoding = System.Text.Encoding.UTF8,
+        StandardErrorEncoding = System.Text.Encoding.UTF8,
         CreateNoWindow = true,
         WorkingDirectory = installDir,
     };
@@ -1517,7 +1504,17 @@ static bool SameFile(string a, string b)
         psi.ArgumentList.Add(a);
     }
     using var p = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start aji-runtime");
-    var stdout = p.StandardOutput.ReadToEndAsync();
+    var stdout = Task.Run(() =>
+    {
+        var all = new System.Text.StringBuilder();
+        string? l;
+        while ((l = p.StandardOutput.ReadLine()) != null)
+        {
+            all.Append(l).Append('\n');
+            onStdoutLine?.Invoke(l);
+        }
+        return all.ToString();
+    });
     string? line;
     while ((line = p.StandardError.ReadLine()) != null)
     {
@@ -1525,15 +1522,235 @@ static bool SameFile(string a, string b)
         {
             Console.WriteLine(line.TrimEnd());
         }
+        onStderrLine?.Invoke(line);
     }
     p.WaitForExit();
     string output = stdout.Result;
-    if (!capture && output.Length > 0)
+    if (!capture && onStdoutLine is null && output.Length > 0)
     {
         Console.Write(output);
     }
     return (p.ExitCode, output);
 }
+
+// `aji-runtime location --json`; null when aji-runtime can't say (older than 0.2.0, or an error).
+AjiLocation? ReadLocation()
+{
+    var (rc, stdout) = RunAjiRuntime(["location", "--json"], capture: true);
+    return rc == 0 ? StoreCopy.ParseLocation(stdout) : null;
+}
+
+// A zip copy keeps its packs inside its own folder unless told otherwise: before anything touches the
+// store, a zip copy with no settings file and no packs of its own yet (no aji-runtime.json) gets one
+// naming `runtime` (relative, so the folder can be moved or copied to another PC). An older zip copy
+// that already has its packs in the per-user store stays there; installed copies use the per-user
+// store. Needs aji-runtime 0.3.0+ (location's `source`); an older one is left as it is.
+void DefaultZipStore()
+{
+    if (!storeMode || !zipCopy || File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")))
+    {
+        return;
+    }
+    if (ReadLocation() is not { Source: "default", SettingsFile: { Length: > 0 } conf } || File.Exists(conf))
+    {
+        return;
+    }
+    var (rc, _) = RunAjiRuntime(["use", StoreCopy.InsideStore], capture: true);
+    if (rc != 0)
+    {
+        Console.WriteLine("Couldn't set this copy's runtime folder; it uses the shared one.");
+    }
+}
+
+// The bytes of the files in a folder (0 when it can't be read).
+static long FolderBytes(string dir)
+{
+    try
+    {
+        return Directory.Exists(dir)
+            ? new DirectoryInfo(dir).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length)
+            : 0;
+    }
+    catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+    {
+        return 0;
+    }
+}
+
+// `--storage --json`, for App Settings > Storage: which store this copy uses and whether it has its
+// packs there. Exactly one JSON object on stdout; offline and quick (aji-runtime location and show
+// only).
+int StorageJson()
+{
+    // UTF-8 when redirected (the app reads it so); a terminal keeps the console's own writer
+    var json = Console.IsOutputRedirected ? Utf8Writer(Console.OpenStandardOutput()) : Console.Out;
+    // anything else (aji-runtime's errors, the updater's own) goes to stderr
+    Console.SetOut(Console.IsErrorRedirected ? Utf8Writer(Console.OpenStandardError()) : Console.Error);
+    if (!storeMode)
+    {
+        Console.WriteLine("This install doesn't keep its components in a pack store.");
+        return 1;
+    }
+    DefaultZipStore();
+    if (ReadLocation() is not { Source: not null, DefaultRoot: not null } loc)
+    {
+        Console.WriteLine("aji-runtime is too old to choose where the components are kept.");
+        return 1;
+    }
+    // A folder that isn't there can't be read: this copy has its packs in it when it has aji-runtime.json.
+    var packs = loc.Available ? StorePacks(ReadOwnRef()) : [];
+    json.WriteLine(JsonSerializer.Serialize(new
+    {
+        choice = StoreCopy.Choice(loc, insideStoreDir),
+        root = loc.Root,
+        moved = loc.Moved,
+        target = loc.Target,
+        available = loc.Available,
+        inside = insideStoreDir,
+        shared = loc.DefaultRoot,
+        installed = loc.Available ? packs.Count > 0 : File.Exists(Path.Combine(inferenceDir, "aji-runtime.json")),
+        bytes = packs.Values.Sum(p => FolderBytes(p.Dir)),
+    }));
+    json.Flush();
+    return 0;
+}
+
+// `--storage inside|shared|<folder>`: this copy uses that store from now on, and its packs move along
+// (aji-runtime use: hard links or copies, never a download), and so do the app's TensorRT engines
+// when nothing else uses the old store (MoveEngines).
+// AJI_MOVE <copied> <total> lines go to stdout as they come. On failure the reason is the last line of
+// output.
+int StorageSwitch(string choice)
+{
+    if (Console.IsOutputRedirected)
+    {
+        Console.SetOut(Utf8Writer(Console.OpenStandardOutput()));
+    }
+    int Fail(string reason)
+    {
+        Console.WriteLine(reason);
+        return 1;
+    }
+    if (!storeMode)
+    {
+        return Fail("This install doesn't keep its components in a pack store.");
+    }
+    // The app can stay open (it loads nothing from the store itself); an upscale can't.
+    if (UpscaleRunning())
+    {
+        return Fail("Wait for the upscale to finish: its files can't be moved while they're in use.");
+    }
+    DefaultZipStore();
+    if (ReadLocation() is not { Source: not null, DefaultRoot: not null } loc)
+    {
+        return Fail("aji-runtime is too old to choose where the components are kept.");
+    }
+    if (StoreCopy.UseTarget(choice, insideStoreDir, loc.DefaultRoot) is not { } target)
+    {
+        return Fail($"{choice}: give inside, shared or a full folder path.");
+    }
+    // Only this copy's ref moves along. Without one (nothing installed here yet, or the ref show reads is
+    // another copy's) only the setting changes, and the next install goes there.
+    bool own = ReadOwnRef() is not null;
+    var arguments = new List<string> { "use", target };
+    if (own)
+    {
+        arguments.AddRange(StoreIdArgs());
+        if (!zipCopy)
+        {
+            arguments.AddRange(["--app-path", appPath]);
+        }
+        arguments.AddRange(["--aji-dir", inferenceDir]);
+    }
+    arguments.AddRange(["--progress", "lines"]);
+    string? error = null;
+    var (rc, _) = RunAjiRuntime(arguments, capture: false, onStdoutLine: line =>
+    {
+        if (line.StartsWith("AJI_MOVE ", StringComparison.Ordinal))
+        {
+            Console.WriteLine(line.Trim());
+        }
+        else if (line.Trim() == "AJI_WAIT")
+        {
+            Console.WriteLine("Waiting for another app that is changing the runtime folder...");
+        }
+    }, onStderrLine: line =>
+    {
+        if (line.StartsWith("error: ", StringComparison.Ordinal))
+        {
+            error = line["error: ".Length..].Trim();
+        }
+    });
+    if (rc != 0)
+    {
+        return Fail(error ?? $"aji-runtime exited with {rc}; nothing was moved.");
+    }
+    var now = ReadLocation();
+    if (now is not null)
+    {
+        MoveEngines(loc.Root, now.Root, loc.DefaultRoot);
+    }
+    Console.WriteLine(now is null ? "Done." : $"The components are now kept in {now.Folder}.");
+    return 0;
+}
+
+// The app's TensorRT engines live in the store's folder (engines/mangajanai-gui, BackendService
+// .EngineCacheDirectory). After a switch they go along (rebuilding one takes minutes) when nothing else
+// uses the old store: aji-runtime removed it (its store.json is gone; it removes a store it emptied,
+// only its own files), so the engines would only be left behind there, and would keep the folder from
+// being chosen again. The engines in a store that others still use (the per-user one, a folder other
+// apps share) stay for them, and this copy builds its own again. The old folder is removed if that
+// leaves it empty. Best effort: an engine that can't be moved is built again.
+static void MoveEngines(string fromRoot, string toRoot, string? sharedRoot)
+{
+    if (StoreCopy.SamePath(fromRoot, toRoot) || StoreCopy.SamePath(fromRoot, sharedRoot) ||
+        File.Exists(Path.Combine(fromRoot, "store.json")))
+    {
+        return;
+    }
+    string from = Path.Combine(fromRoot, "engines", StoreCopy.AppId);
+    string to = Path.Combine(toRoot, "engines", StoreCopy.AppId);
+    try
+    {
+        if (Directory.Exists(from))
+        {
+            Directory.CreateDirectory(to);
+            foreach (var file in Directory.EnumerateFiles(from).ToList())
+            {
+                string dest = Path.Combine(to, Path.GetFileName(file));
+                // one already there is the same engine (its name says what it was built from)
+                TryDelete(() => { if (File.Exists(dest)) File.Delete(file); else File.Move(file, dest); });
+            }
+        }
+        foreach (var dir in new[] { from, Path.Combine(fromRoot, "engines"), fromRoot })
+        {
+            TryDelete(() => { if (Directory.Exists(dir) && !Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir); });
+        }
+    }
+    catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+    {
+        Console.WriteLine($"The TensorRT engines stay in {from}: {e.Message}");
+    }
+}
+
+// Whether an upscale runs from this copy (inference/mangajanai_upscale, which loads the packs). The
+// app and the updater load nothing from the store.
+bool UpscaleRunning()
+{
+    string root = Path.GetFullPath(inferenceDir) + Path.DirectorySeparatorChar;
+    return Process.GetProcesses().Any(p =>
+    {
+        try
+        {
+            return p.MainModule?.FileName is string f && Path.GetFullPath(f).StartsWith(root, StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; } // exited, or not ours to inspect
+        finally { p.Dispose(); }
+    });
+}
+
+static TextWriter Utf8Writer(Stream stream) =>
+    TextWriter.Synchronized(new StreamWriter(stream, new System.Text.UTF8Encoding(false)) { AutoFlush = true });
 
 // Component packs are 7z archives rooted at the install dir; the bundled 7-Zip console extracts them.
 void ExtractPack(string archive, string outDir)

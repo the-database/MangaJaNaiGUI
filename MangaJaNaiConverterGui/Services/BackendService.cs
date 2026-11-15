@@ -41,12 +41,13 @@ namespace MangaJaNaiConverterGui.Services
         public string AppStatePath => Path.Join(AppStateFolder, AppStateFilename);
         public string LogsDirectory => Path.Combine(AppStateFolder, "logs");
         public string UserModelsDirectory => Path.Combine(AppStateFolder, "models");
-        // TensorRT engines: rebuildable, but a few minutes each to build. An install that uses the
-        // shared pack store keeps them in the store's folder (engines/mangajanai-gui), so they move
-        // with it when the user puts the store on another drive (App Settings > Storage), and stay out
-        // of the roaming profile. Otherwise beside the settings, as before.
+        // TensorRT engines: rebuildable, but a few minutes each to build. An install that uses a pack
+        // store keeps them in the folder of the store it uses (engines/mangajanai-gui; the one
+        // aji-runtime.conf at the install root names, else the per-user store), so they move with it
+        // (App Settings > Storage), stay inside a portable copy, and stay out of the roaming profile.
+        // Otherwise beside the settings, as before.
         public string EngineCacheDirectory => UsesPackStore
-            ? Path.Combine(StoreLocation.DefaultRoot(), "engines", "mangajanai-gui")
+            ? Path.Combine(StoreLocation.CurrentRoot(Path.Combine(InferenceDirectory, "..", "aji-runtime.conf")), "engines", "mangajanai-gui")
             : Path.Combine(AppStateFolder, "engines");
 
         private bool UsesPackStore => Installed && File.Exists(Path.Combine(InferenceDirectory, "aji-runtime.json"));
@@ -80,17 +81,34 @@ namespace MangaJaNaiConverterGui.Services
         private static bool RuntimeFolderHasTrt(string dir) => File.Exists(Path.Combine(dir, Exe("trtexec"))) &&
             HasFile(dir, OperatingSystem.IsWindows() ? "cudart64_*.dll" : "libcudart.so*");
 
-        // inference/aji-runtime.json, which the updater has the shared pack store write beside libaji:
-        // the pack folders libaji loads TensorRT / TensorRT-RTX from, and the model pack folders.
+        // inference/aji-runtime.json, which the updater has the pack store write beside libaji: the
+        // pack folders libaji loads TensorRT / TensorRT-RTX from, and the model pack folders. AJI_RUNTIME_JSON
+        // names it where the inference folder is read-only (the AppImage), as it does for libaji.
+        private string RuntimeJsonPath => Environment.GetEnvironmentVariable("AJI_RUNTIME_JSON") is { Length: > 0 } env
+            ? env
+            : Path.Combine(InferenceDirectory, "aji-runtime.json");
+
+        // A folder aji-runtime.json names: absolute, or relative to the file's folder (a store inside
+        // a portable copy, which can then be moved).
+        private string RuntimeJsonFolder(string dir)
+        {
+            try
+            {
+                return Path.IsPathRooted(dir)
+                    ? dir
+                    : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(RuntimeJsonPath)) ?? ".", dir));
+            }
+            catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return dir;
+            }
+        }
+
         private JsonElement? RuntimeJson()
         {
             try
             {
-                // AJI_RUNTIME_JSON names it where the inference folder is read-only (the AppImage), as
-                // it does for libaji.
-                string path = Environment.GetEnvironmentVariable("AJI_RUNTIME_JSON") is { Length: > 0 } env
-                    ? env
-                    : Path.Combine(InferenceDirectory, "aji-runtime.json");
+                string path = RuntimeJsonPath;
                 if (!File.Exists(path))
                 {
                     return null;
@@ -106,11 +124,11 @@ namespace MangaJaNaiConverterGui.Services
 
         private string? RuntimePack(string key) =>
             RuntimeJson() is JsonElement j && j.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String &&
-            v.GetString() is { Length: > 0 } dir && Directory.Exists(dir) ? dir : null;
+            v.GetString() is { Length: > 0 } dir && Directory.Exists(RuntimeJsonFolder(dir)) ? RuntimeJsonFolder(dir) : null;
 
         public IReadOnlyList<string> StoreModelsDirectories =>
             RuntimeJson() is JsonElement j && j.TryGetProperty("models", out var m) && m.ValueKind == JsonValueKind.Array
-                ? m.EnumerateArray().Select(v => v.GetString() ?? "").Where(d => d.Length > 0).ToList()
+                ? m.EnumerateArray().Select(v => v.GetString() ?? "").Where(d => d.Length > 0).Select(RuntimeJsonFolder).ToList()
                 : [];
 
         public IReadOnlyList<string> ModelsDirectories => [UserModelsDirectory, .. StoreModelsDirectories, BundledModelsDirectory];
