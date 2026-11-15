@@ -502,6 +502,17 @@ namespace MangaJaNaiConverterGui.ViewModels
             set => this.RaiseAndSetIfChanged(ref _autoUpdate, value);
         }
 
+        // libaji's native GPU kernels (RTX 30 and newer) for the models that have them, instead of
+        // TensorRT engines. On by default; off runs the backend with AJI_NATIVE=off, so every model
+        // uses TensorRT. DirectML ignores it.
+        private bool _useNativeKernels = true;
+        [DataMember]
+        public bool UseNativeKernels
+        {
+            get => _useNativeKernels;
+            set => this.RaiseAndSetIfChanged(ref _useNativeKernels, value);
+        }
+
         // Which inference backend upscales: Auto (TensorRT-RTX where its component is installed, then
         // TensorRT when it can run, else DirectML), TensorRT, TensorRT-RTX or DirectML. See
         // UpscaleBackends.
@@ -1883,11 +1894,13 @@ namespace MangaJaNaiConverterGui.ViewModels
         // Run the backend for a short query (e.g. --list-devices) and return its stdout.
         private Task<string> RunBackendQuery(params string[] arguments) => RunBackendQuery(null, arguments);
 
+        // AJI_NATIVE=off when native kernels are turned off (libaji reads it on each model load).
         // Linux: libaji_trt.so asks for the TensorRT and CUDA libraries by soname, and the ones the
         // trt-runtime component puts beside it are found through the loader path (which trtexec, run by
         // the backend for engine builds, inherits).
         private void SetBackendEnvironment(ProcessStartInfo startInfo)
         {
+            UpscaleBackends.ApplyNativeKernels(startInfo.Environment, UseNativeKernels);
             if (OperatingSystem.IsWindows())
             {
                 return;
