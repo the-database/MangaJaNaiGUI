@@ -142,14 +142,14 @@ const string CliRepo           = "the-database/MangaJaNaiCLI";
 // chaiNNer's alpha denoise, and folders also take tif/tiff/jxl images and 7z/cb7 archives. v0.1.4 added
 // --model-info and HINT lines, compute_capability in --list-devices, and runs exactly the model file
 // it is given. v0.1.2 added --backend tensorrt-rtx and BACKEND_FALLBACK lines.
-const string CliVersion        = "v0.9.4";
+const string CliVersion        = "v0.9.5";
 const string CliAsset          = "mangajanai-cli-windows-x64.zip";
-const string CliSha256         = "1064c08d835cd0a4ec173fd744b03df79217f9c208c0efb2b2a541c6dd39fc8b";
+const string CliSha256         = "65f3c133466ca59b156107ecdac690ec96aac13467ad952899e0677addde81f6";
 // Linux: the release's mangajanai-linux-x64.tar.zst. Its `mangajanai` is the same program as
 // mangajanai_upscale (one binary under two names, the GUI's --settings interface included), so it ships
 // as inference/mangajanai_upscale. The libaji it carries is left out: InstallAji supplies the same one.
 const string CliAssetLinux     = "mangajanai-linux-x64.tar.zst";
-const string CliSha256Linux    = "ee7088aa0b3bbce2c9b70b17830a19badafab10392ccf13b5ab39a79c4647fda";
+const string CliSha256Linux    = "62239442b6e84968d81024cd59a7d88e9fb120aa07c5603e9f84da5d547fc86d";
 
 // The default ONNX models, published as archives on each model's MangaJaNai release, one archive per
 // component pack. Every file is named <checkpoint>_<precision of the ONNX itself> (fp16, bf16 or fp32),
