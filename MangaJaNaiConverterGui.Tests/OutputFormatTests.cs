@@ -47,6 +47,62 @@ namespace MangaJaNaiConverterGui.Tests
             Assert.Equal("webp", old.ImageFormat);
         }
 
+        [Fact]
+        public void JpegXlOffersDistanceInPlaceOfQuality()
+        {
+            var w = new UpscaleWorkflow();
+            Assert.False(w.ShowJxlQualityMode);
+            Assert.True(w.ShowQualityValue);
+
+            w.SetJxlSelected();
+            Assert.True(w.ShowJxlQualityMode);
+            Assert.True(w.ShowQualityValue);
+            Assert.False(w.ShowJxlDistanceValue);
+            Assert.Equal("JPEG XL q80", w.OutputSummary);
+
+            w.JxlQualityModeIndex = 1;
+            Assert.True(w.UseJxlDistance);
+            Assert.False(w.ShowQualityValue);
+            Assert.True(w.ShowJxlDistanceValue);
+            w.JxlDistance = 0.5;
+            Assert.Equal("JPEG XL d0.5", w.OutputSummary);
+
+            w.UseLosslessCompression = true;
+            Assert.False(w.ShowJxlQualityMode || w.ShowQualityValue || w.ShowJxlDistanceValue);
+            Assert.Equal("JPEG XL lossless", w.OutputSummary);
+
+            w.UseLosslessCompression = false;
+            w.SetAvifSelected();
+            Assert.True(w.ShowQualityValue, "other formats keep the quality");
+            Assert.False(w.ShowJxlQualityMode || w.ShowJxlDistanceValue);
+        }
+
+        // The CLI reads UseJxlDistance and JxlDistance from the saved state; a workflow saved before
+        // they existed uses the quality.
+        [Fact]
+        public void JxlDistanceIsSavedAndOldWorkflowsUseTheQuality()
+        {
+            var w = new UpscaleWorkflow();
+            w.SetJxlSelected();
+            w.UseJxlDistance = true;
+            w.JxlDistance = 0.5;
+            var json = JsonConvert.SerializeObject(w, NewtonsoftJsonSuspensionDriver.Settings);
+            Assert.Contains("\"UseJxlDistance\": true", json);
+            Assert.Contains("\"JxlDistance\": 0.5", json);
+
+            var back = (UpscaleWorkflow)JsonConvert.DeserializeObject(json, NewtonsoftJsonSuspensionDriver.Settings)!;
+            Assert.True(back.UseJxlDistance);
+            Assert.Equal(0.5, back.JxlDistance);
+
+            var obj = Newtonsoft.Json.Linq.JObject.Parse(json);
+            obj.Remove("UseJxlDistance");
+            obj.Remove("JxlDistance");
+            var old = (UpscaleWorkflow)JsonConvert.DeserializeObject(obj.ToString(), NewtonsoftJsonSuspensionDriver.Settings)!;
+            Assert.False(old.UseJxlDistance);
+            Assert.Equal(1.0, old.JxlDistance);
+            Assert.True(old.ShowQualityValue);
+        }
+
         [Theory]
         [InlineData("page.jxl")]
         [InlineData("page.TIFF")]

@@ -754,10 +754,15 @@
                 </ContentControl>
 
                 <StackPanel Classes="row" IsVisible="{Binding CurrentWorkflow.ShowLossyCompressionQuality}">
-                  <ContentControl Classes="hint" Content="Lossy Compression Quality"
-                                  ToolTip.Tip="Quality level for compression. Note that a quality level of 100 is still lossy." />
-                  <NumericUpDown Margin="0,0,5,0" Value="{Binding CurrentWorkflow.LossyCompressionQuality}" Increment="1" Minimum="0" Maximum="100" Width="120" />
-                  <TextBlock>%</TextBlock>
+                  <ContentControl Classes="hint" Content="{Binding CurrentWorkflow.LossyCompressionLabel}"
+                                  ToolTip.Tip="{Binding CurrentWorkflow.LossyCompressionTip}" />
+                  <ComboBox Margin="0,0,5,0" IsVisible="{Binding CurrentWorkflow.ShowJxlQualityMode}" SelectedIndex="{Binding CurrentWorkflow.JxlQualityModeIndex, Mode=TwoWay}">
+                    <ComboBoxItem>Quality</ComboBoxItem>
+                    <ComboBoxItem>Distance</ComboBoxItem>
+                  </ComboBox>
+                  <NumericUpDown Margin="0,0,5,0" IsVisible="{Binding CurrentWorkflow.ShowQualityValue}" Value="{Binding CurrentWorkflow.LossyCompressionQuality}" Increment="1" Minimum="0" Maximum="100" Width="120" />
+                  <TextBlock IsVisible="{Binding CurrentWorkflow.ShowQualityValue}">%</TextBlock>
+                  <NumericUpDown Margin="0,0,5,0" IsVisible="{Binding CurrentWorkflow.ShowJxlDistanceValue}" Value="{Binding CurrentWorkflow.JxlDistance}" Increment="0.05" Minimum="0" Maximum="25" FormatString="0.##" Width="120" />
                 </StackPanel>
               </StackPanel>
             </Expander>
