@@ -132,6 +132,7 @@ const string DirectMLVersion   = "1.15.4";                // Microsoft.AI.Direct
 // yosh's crates/mangajanai-cli, released there on mangajanai-cli-v* tags), built on yosh-image +
 // libaji. MANGAJANAI_CLI_LOCAL overrides it with a local build.
 const string CliRepo           = "the-database/MangaJaNaiCLI";
+// v0.9.5 reads UseJxlDistance / JxlDistance (the JPEG XL distance) and saves JPEG XL quality 100 as lossless.
 // v0.6.2 adds --control stdin, which Pause uses to unload the models (freeing the GPU memory).
 // v0.9.2 prints NATIVE / NATIVE_UNUSED / NATIVE_OFF lines: whether each model runs on native kernels.
 // v0.9.1 bundles libaji v0.31.0 (SPAN/Compact on the native kernels).
