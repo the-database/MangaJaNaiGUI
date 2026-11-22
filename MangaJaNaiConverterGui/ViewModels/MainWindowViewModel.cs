@@ -116,6 +116,8 @@ namespace MangaJaNaiConverterGui.ViewModels
   "JpegSelected": false,
   "UseLosslessCompression": false,
   "LossyCompressionQuality": 80,
+  "UseJxlDistance": false,
+  "JxlDistance": 1.0,
   "ShowLossySettings": true,
   "ModeScaleSelected": true,
   "UpscaleScaleFactor": 4,
@@ -3020,7 +3022,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             get
             {
                 var format = WebpSelected ? "WebP" : PngSelected ? "PNG" : AvifSelected ? "AVIF" : JxlSelected ? "JPEG XL" : "JPEG";
-                var quality = ShowLossyCompressionQuality ? $" q{LossyCompressionQuality}" : ShowUseLosslessCompression ? " lossless" : "";
+                var quality = ShowJxlDistanceValue ? $" d{JxlDistance:0.##}" : ShowLossyCompressionQuality ? $" q{LossyCompressionQuality}" : ShowUseLosslessCompression ? " lossless" : "";
                 return string.IsNullOrWhiteSpace(OutputFolderPath) ? $"{format}{quality}" : $"{format}{quality} → {OutputFolderPath}";
             }
         }
@@ -3195,7 +3197,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             {
                 this.RaiseAndSetIfChanged(ref _webpSelected, value);
                 this.RaisePropertyChanged(nameof(ShowUseLosslessCompression));
-                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                RaiseQualityRow();
             }
         }
 
@@ -3207,7 +3209,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _avifSelected, value);
-                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                RaiseQualityRow();
                 this.RaisePropertyChanged(nameof(ShowUseLosslessCompression));
             }
         }
@@ -3220,7 +3222,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _jxlSelected, value);
-                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                RaiseQualityRow();
                 this.RaisePropertyChanged(nameof(ShowUseLosslessCompression));
             }
         }
@@ -3244,7 +3246,7 @@ namespace MangaJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _jpegSelected, value);
-                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                RaiseQualityRow();
             }
         }
 
@@ -3260,11 +3262,62 @@ namespace MangaJaNaiConverterGui.ViewModels
             set
             {
                 this.RaiseAndSetIfChanged(ref _useLosslessCompression, value);
-                this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+                RaiseQualityRow();
             }
         }
 
         public bool ShowLossyCompressionQuality => JpegSelected || ((WebpSelected || JxlSelected) && !UseLosslessCompression) || AvifSelected;
+
+        // JPEG XL's lossy setting is the quality or its own distance (cjxl's -d), picked beside the box.
+        public bool ShowJxlQualityMode => JxlSelected && !UseLosslessCompression;
+
+        public bool ShowQualityValue => ShowLossyCompressionQuality && !(ShowJxlQualityMode && UseJxlDistance);
+
+        public bool ShowJxlDistanceValue => ShowJxlQualityMode && UseJxlDistance;
+
+        public string LossyCompressionLabel => ShowJxlQualityMode ? "Lossy Compression" : "Lossy Compression Quality";
+
+        public string LossyCompressionTip => ShowJxlQualityMode
+            ? "Quality level for compression, or JPEG XL's own distance setting (as cjxl's -d, 0 to 25). Lower distance is better quality: 1 is visually lossless (about quality 90), 0.5 is about quality 95.5, and distance 0 or quality 100 is lossless."
+            : "Quality level for compression. Note that a quality level of 100 is still lossy.";
+
+        private void RaiseQualityRow()
+        {
+            this.RaisePropertyChanged(nameof(ShowLossyCompressionQuality));
+            this.RaisePropertyChanged(nameof(ShowJxlQualityMode));
+            this.RaisePropertyChanged(nameof(ShowQualityValue));
+            this.RaisePropertyChanged(nameof(ShowJxlDistanceValue));
+            this.RaisePropertyChanged(nameof(LossyCompressionLabel));
+            this.RaisePropertyChanged(nameof(LossyCompressionTip));
+        }
+
+        private bool _useJxlDistance = false;
+        [DataMember]
+        public bool UseJxlDistance
+        {
+            get => _useJxlDistance;
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _useJxlDistance, value);
+                this.RaisePropertyChanged(nameof(JxlQualityModeIndex));
+                RaiseQualityRow();
+            }
+        }
+
+        // The Quality / Distance dropdown: 0 is quality, 1 is distance.
+        public int JxlQualityModeIndex
+        {
+            get => UseJxlDistance ? 1 : 0;
+            set => UseJxlDistance = value == 1;
+        }
+
+        private double? _jxlDistance = 1.0;
+        [DataMember]
+        public double? JxlDistance
+        {
+            get => _jxlDistance;
+            set => this.RaiseAndSetIfChanged(ref _jxlDistance, value ?? 1.0);
+        }
 
         private int? _lossyCompressionQuality = 80;
         [DataMember]
